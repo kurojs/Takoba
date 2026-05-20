@@ -21,6 +21,102 @@ import { join } from "path";
 const execAsync = promisify(exec);
 
 // ────────────────────────────────────────────
+// Localization
+// ────────────────────────────────────────────
+
+const LANGUAGES = [
+  "English", "Spanish", "German", "French",
+  "Russian", "Swedish", "Dutch", "Hungarian", "Slovenian",
+] as const;
+
+type Lang = (typeof LANGUAGES)[number];
+
+const UI: Record<string, Record<string, string>> = {
+  English: {
+    translation: "Translation",
+    words: "Words",
+    kanji: "Kanji",
+    pitch: "Pitch",
+    onyomi: "On'yomi",
+    kunyomi: "Kun'yomi",
+    strokeOrder: "Stroke Order",
+    grade: "Grade",
+    strokes: "strokes",
+    freq: "Freq",
+    radical: "Radical",
+    exampleSentences: "Example Sentences",
+    addToAnki: "Add to Anki",
+    addSentenceToAnki: "Add Translated Sentence to Anki",
+    playAudio: "Play Audio",
+    copy: "Copy",
+    copyWord: "Copy Word",
+    copyDefinition: "Copy Definition",
+    copyKanji: "Copy Kanji",
+    copyMeanings: "Copy Meanings",
+    openOnJotoba: "Open on Jotoba",
+    copied: "Copied!",
+    addedToAnki: "Added to Anki! ✅",
+    playingAudio: "Playing audio! 🔊",
+    ankiNotConnected: "Anki not connected",
+    ankiNotConnectedMsg: "Make sure Anki is running with AnkiConnect on port {port}",
+    cardAddedMsg: "Card added to {deck}",
+    search: "Search Kotoba",
+    searchPlaceholder: "Search Japanese words, kanji, or phrases...",
+    noResults: "No results found",
+    noResultsMsg: "No results for \"{query}\"",
+    typeToSearch: "Type a word, kanji, or phrase to search",
+    alreadyInDeck: "Ya está en el mazo",
+    alreadyInDeckMsg: "\"{deck}\" already has this card",
+    errorAdding: "Error adding to Anki",
+    errorAddingMsg: "{msg}",
+    failPlayAudio: "Failed to play audio",
+  },
+  Spanish: {
+    translation: "Traducción",
+    words: "Palabras",
+    kanji: "Kanji",
+    pitch: "Acento",
+    onyomi: "On'yomi",
+    kunyomi: "Kun'yomi",
+    strokeOrder: "Orden de Trazos",
+    grade: "Grado",
+    strokes: "trazos",
+    freq: "Frec",
+    radical: "Radical",
+    exampleSentences: "Oraciones de Ejemplo",
+    addToAnki: "Agregar a Anki",
+    addSentenceToAnki: "Agregar Oración a Anki",
+    playAudio: "Reproducir Audio",
+    copy: "Copiar",
+    copyWord: "Copiar Palabra",
+    copyDefinition: "Copiar Definición",
+    copyKanji: "Copiar Kanji",
+    copyMeanings: "Copiar Significados",
+    openOnJotoba: "Abrir en Jotoba",
+    copied: "¡Copiado!",
+    addedToAnki: "¡Agregado a Anki! ✅",
+    playingAudio: "¡Reproduciendo audio! 🔊",
+    ankiNotConnected: "Anki no conectado",
+    ankiNotConnectedMsg: "Asegurate que Anki esté corriendo con AnkiConnect en puerto {port}",
+    cardAddedMsg: "Tarjeta agregada a {deck}",
+    search: "Buscar Kotoba",
+    searchPlaceholder: "Buscá palabras, kanji o frases en japonés...",
+    noResults: "Sin resultados",
+    noResultsMsg: "Sin resultados para \"{query}\"",
+    typeToSearch: "Escribí una palabra, kanji o frase para buscar",
+    alreadyInDeck: "Ya está en el mazo",
+    alreadyInDeckMsg: "\"{deck}\" ya tiene esta tarjeta",
+    errorAdding: "Error al agregar",
+    errorAddingMsg: "{msg}",
+    failPlayAudio: "Error al reproducir audio",
+  },
+};
+
+function t(key: string, lang: Lang): string {
+  return UI[lang]?.[key] ?? UI.English[key] ?? key;
+}
+
+// ────────────────────────────────────────────
 // Types
 // ────────────────────────────────────────────
 
@@ -530,52 +626,57 @@ function buildWordFullDetailMarkdown(
   word: JotobaWord,
   sense: { glosses: string[]; language: string; pos?: string },
   sentences: JotobaSentence[],
+  lang: Lang,
 ): string {
   let md = buildWordDetailMarkdown(word, sense);
 
   if (word.pitch && word.pitch.length > 0) {
-    const pitchStr = word.pitch
-      .map((p) => (p.high ? `**${p.part}**` : p.part))
-      .join("");
-    md += `\n\n**Pitch:** ${pitchStr}`;
+    const parts: string[] = [];
+    let hasRisen = false;
+    for (const p of word.pitch) {
+      if (p.high && !hasRisen) {
+        parts.push(`↑${p.part}`);
+        hasRisen = true;
+      } else if (!p.high && hasRisen) {
+        parts.push(`↘${p.part}`);
+        hasRisen = false;
+      } else {
+        parts.push(p.part);
+      }
+    }
+    md += `\n\n**${t("pitch", lang)}:** ${parts.join("")}`;
   }
 
   if (sentences.length > 0) {
-    md += `\n\n---\n\n## Example Sentences\n\n`;
+    md += `\n\n---\n\n## ${t("exampleSentences", lang)}\n\n`;
     md += sentences
-      .map((s) => {
-        const eng = s.eng ? ` (${s.eng})` : "";
-        return `- ${s.content} → ${s.translation}${eng}`;
-      })
+      .map((s) => `- ${s.content} → ${s.translation}`)
       .join("\n");
   }
 
   return md;
 }
 
-function buildKanjiMarkdown(kanji: JotobaKanji): string {
+function buildKanjiMarkdown(kanji: JotobaKanji, lang: Lang): string {
   const lines: string[] = [];
   lines.push(`# ${kanji.literal}`);
-
   lines.push(`\n${kanji.meanings.join(", ")}`);
 
   const readings: string[] = [];
   if (kanji.onyomi && kanji.onyomi.length > 0)
-    readings.push(`**On'yomi:** ${kanji.onyomi.join("・")}`);
+    readings.push(`**${t("onyomi", lang)}:** ${kanji.onyomi.join("・")}`);
   if (kanji.kunyomi && kanji.kunyomi.length > 0)
-    readings.push(`**Kun'yomi:** ${kanji.kunyomi.join("・")}`);
+    readings.push(`**${t("kunyomi", lang)}:** ${kanji.kunyomi.join("・")}`);
   if (readings.length > 0) lines.push(`\n${readings.join(" | ")}`);
 
   const details: string[] = [];
-  details.push(`JLPT N${kanji.jlpt}`);
-  details.push(`Grade ${kanji.grade}`);
-  details.push(`${kanji.stroke_count} strokes`);
-  details.push(`Freq: #${kanji.frequency}`);
-  if (kanji.radical) details.push(`Radical: ${kanji.radical}`);
+  details.push(`JLPT N${kanji.jlpt} · ${t("grade", lang)} ${kanji.grade} · ${kanji.stroke_count} ${t("strokes", lang)}`);
+  if (kanji.frequency) details.push(`${t("freq", lang)}: #${kanji.frequency}`);
+  if (kanji.radical) details.push(`${t("radical", lang)}: ${kanji.radical}`);
   lines.push(`\n${details.join(" · ")}`);
 
   const imgUrl = `https://jotoba.de/resource/kanji/frames/${encodeURIComponent(kanji.literal)}`;
-  lines.push(`\n\n![Stroke Order](${imgUrl})`);
+  lines.push(`\n\n![${t("strokeOrder", lang)}](${imgUrl})`);
 
   return lines.join("\n");
 }
@@ -586,22 +687,23 @@ function buildKanjiMarkdown(kanji: JotobaKanji): string {
 
 function WordListItem({
   word,
-  language,
+  lang,
   preferences,
 }: {
   word: JotobaWord;
-  language: string;
+  lang: Lang;
   preferences: Preferences;
 }) {
   const [sentences, setSentences] = useState<JotobaSentence[]>([]);
   const [sentencesLoading, setSentencesLoading] = useState(false);
-  const sense = getBestSense(word, language);
+  const sense = getBestSense(word, lang);
   const title = formatWordTitle(word);
   const subtitle = sense.glosses[0];
   const detailMd = buildWordFullDetailMarkdown(
     word,
     sense,
     sentences,
+    lang,
   );
 
   useEffect(() => {
@@ -609,7 +711,7 @@ function WordListItem({
     const query = word.reading.kanji || word.reading.kana;
     if (query && sentences.length === 0 && !sentencesLoading) {
       setSentencesLoading(true);
-      fetchSentences(query, language).then((s) => {
+      fetchSentences(query, lang).then((s) => {
         if (!cancelled) {
           setSentences(s);
           setSentencesLoading(false);
@@ -654,7 +756,7 @@ function WordListItem({
       actions={
         <ActionPanel>
           <Action
-            title="Add to Anki"
+            title={t("addToAnki", lang)}
             icon={{ source: Icon.Plus, tintColor: Color.Green }}
             shortcut={{ modifiers: ["cmd"], key: "a" }}
             onAction={async () => {
@@ -666,8 +768,8 @@ function WordListItem({
               if (!isConnected) {
                 await showToast({
                   style: Toast.Style.Failure,
-                  title: "Anki not connected",
-                  message: `Make sure Anki is running with AnkiConnect on port ${preferences.ankiPort}`,
+                  title: t("ankiNotConnected", lang),
+                  message: t("ankiNotConnectedMsg", lang).replace("{port}", String(preferences.ankiPort)),
                 });
                 return;
               }
@@ -681,21 +783,21 @@ function WordListItem({
                 );
                 await showToast({
                   style: Toast.Style.Success,
-                  title: "Added to Anki! ✅",
-                  message: `Card added to ${preferences.ankiDeck}`,
+                  title: t("addedToAnki", lang),
+                  message: t("cardAddedMsg", lang).replace("{deck}", preferences.ankiDeck),
                 });
               } catch (error) {
                 const msg = String(error).toLowerCase();
                 if (msg.includes("duplicate")) {
                   await showToast({
                     style: Toast.Style.Failure,
-                    title: "Ya está en el mazo",
-                    message: `"${preferences.ankiDeck}" ya tiene esta tarjeta`,
+                    title: t("alreadyInDeck", lang),
+                    message: t("alreadyInDeckMsg", lang).replace("{deck}", preferences.ankiDeck),
                   });
                 } else {
                   await showToast({
                     style: Toast.Style.Failure,
-                    title: "Error al agregar",
+                    title: t("errorAdding", lang),
                     message: String(error),
                   });
                 }
@@ -703,7 +805,7 @@ function WordListItem({
             }}
           />
           <Action
-            title="Play Audio"
+            title={t("playAudio", lang)}
             icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
             shortcut={{ modifiers: ["cmd"], key: "p" }}
             onAction={async () => {
@@ -716,45 +818,45 @@ function WordListItem({
                 );
                 await showToast({
                   style: Toast.Style.Success,
-                  title: "Playing audio! 🔊",
+                  title: t("playingAudio", lang),
                 });
               } catch (error) {
                 await showToast({
                   style: Toast.Style.Failure,
-                  title: "Failed to play audio",
+                  title: t("failPlayAudio", lang),
                   message: String(error),
                 });
               }
             }}
           />
-          <ActionPanel.Section title="Copy">
+          <ActionPanel.Section title={t("copy", lang)}>
             <Action
-              title="Copy Word"
+              title={t("copyWord", lang)}
               icon={Icon.Clipboard}
               shortcut={{ modifiers: ["cmd"], key: "c" }}
               onAction={async () => {
                 await Clipboard.copy(title);
                 await showToast({
                   style: Toast.Style.Success,
-                  title: "Copied!",
+                  title: t("copied", lang),
                 });
               }}
             />
             <Action
-              title="Copy Definition"
+              title={t("copyDefinition", lang)}
               icon={Icon.Clipboard}
               shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
               onAction={async () => {
                 await Clipboard.copy(sense.glosses.join("; "));
                 await showToast({
                   style: Toast.Style.Success,
-                  title: "Copied!",
+                  title: t("copied", lang),
                 });
               }}
             />
           </ActionPanel.Section>
           <Action
-            title="Open on Jotoba"
+            title={t("openOnJotoba", lang)}
             icon={Icon.Globe}
             onAction={async () => {
               const query = word.reading.kanji || word.reading.kana;
@@ -770,21 +872,23 @@ function WordListItem({
 function KanjiListItem({
   kanji,
   preferences,
+  lang,
 }: {
   kanji: JotobaKanji;
   preferences: Preferences;
+  lang: Lang;
 }) {
   const title = kanji.literal;
   const subtitle = formatKanjiReadings(kanji.onyomi, kanji.kunyomi);
-  const detailMd = buildKanjiMarkdown(kanji);
+  const detailMd = buildKanjiMarkdown(kanji, lang);
 
   const ankiBack = [
     kanji.meanings.join(", "),
     "",
-    ...(kanji.onyomi?.length ? [`On'yomi: ${kanji.onyomi.join("・")}`] : []),
-    ...(kanji.kunyomi?.length ? [`Kun'yomi: ${kanji.kunyomi.join("・")}`] : []),
+    ...(kanji.onyomi?.length ? [`${t("onyomi", lang)}: ${kanji.onyomi.join("・")}`] : []),
+    ...(kanji.kunyomi?.length ? [`${t("kunyomi", lang)}: ${kanji.kunyomi.join("・")}`] : []),
     "",
-    `JLPT N${kanji.jlpt} · Grade ${kanji.grade} · ${kanji.stroke_count} strokes`,
+    `JLPT N${kanji.jlpt} · ${t("grade", lang)} ${kanji.grade} · ${kanji.stroke_count} ${t("strokes", lang)}`,
   ].join("\n");
 
   return (
@@ -799,7 +903,7 @@ function KanjiListItem({
       actions={
         <ActionPanel>
           <Action
-            title="Add to Anki"
+            title={t("addToAnki", lang)}
             icon={{ source: Icon.Plus, tintColor: Color.Green }}
             shortcut={{ modifiers: ["cmd"], key: "a" }}
             onAction={async () => {
@@ -809,8 +913,8 @@ function KanjiListItem({
               if (!isConnected) {
                 await showToast({
                   style: Toast.Style.Failure,
-                  title: "Anki not connected",
-                  message: `Make sure Anki is running with AnkiConnect on port ${preferences.ankiPort}`,
+                  title: t("ankiNotConnected", lang),
+                  message: t("ankiNotConnectedMsg", lang).replace("{port}", String(preferences.ankiPort)),
                 });
                 return;
               }
@@ -824,55 +928,55 @@ function KanjiListItem({
                 );
                 await showToast({
                   style: Toast.Style.Success,
-                  title: "Added to Anki! ✅",
-                  message: `Card added to ${preferences.ankiDeck}`,
+                  title: t("addedToAnki", lang),
+                  message: t("cardAddedMsg", lang).replace("{deck}", preferences.ankiDeck),
                 });
               } catch (error) {
                 const msg = String(error).toLowerCase();
                 if (msg.includes("duplicate")) {
                   await showToast({
                     style: Toast.Style.Failure,
-                    title: "Ya está en el mazo",
-                    message: `"${preferences.ankiDeck}" ya tiene esta tarjeta`,
+                    title: t("alreadyInDeck", lang),
+                    message: t("alreadyInDeckMsg", lang).replace("{deck}", preferences.ankiDeck),
                   });
                 } else {
                   await showToast({
                     style: Toast.Style.Failure,
-                    title: "Error al agregar",
+                    title: t("errorAdding", lang),
                     message: String(error),
                   });
                 }
               }
             }}
           />
-          <ActionPanel.Section title="Copy">
+          <ActionPanel.Section title={t("copy", lang)}>
             <Action
-              title="Copy Kanji"
+              title={t("copyKanji", lang)}
               icon={Icon.Clipboard}
               shortcut={{ modifiers: ["cmd"], key: "c" }}
               onAction={async () => {
                 await Clipboard.copy(kanji.literal);
                 await showToast({
                   style: Toast.Style.Success,
-                  title: "Copied!",
+                  title: t("copied", lang),
                 });
               }}
             />
             <Action
-              title="Copy Meanings"
+              title={t("copyMeanings", lang)}
               icon={Icon.Clipboard}
               shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
               onAction={async () => {
                 await Clipboard.copy(kanji.meanings.join(", "));
                 await showToast({
                   style: Toast.Style.Success,
-                  title: "Copied!",
+                  title: t("copied", lang),
                 });
               }}
             />
           </ActionPanel.Section>
           <Action
-            title="Open on Jotoba"
+            title={t("openOnJotoba", lang)}
             icon={Icon.Globe}
             onAction={() => {
               exec(
@@ -892,7 +996,9 @@ function KanjiListItem({
 
 export default function Command() {
   const preferences = getPreferenceValues<Preferences>();
-  const userLang = preferences.userLanguage || "Spanish";
+  const userLang = (LANGUAGES.includes(preferences.userLanguage as Lang)
+    ? preferences.userLanguage
+    : "English") as Lang;
 
   const [searchText, setSearchText] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
@@ -971,7 +1077,7 @@ export default function Command() {
 
   return (
     <List
-      searchBarPlaceholder="Search Japanese words, kanji, or phrases..."
+      searchBarPlaceholder={t("searchPlaceholder", userLang)}
       searchText={searchText}
       onSearchTextChange={setSearchText}
       isLoading={isLoading}
@@ -980,32 +1086,32 @@ export default function Command() {
       {!hasSearched ? (
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
-          title="Search Kotoba"
-          description="Type a word, kanji, or phrase to search"
+          title={t("search", userLang)}
+          description={t("typeToSearch", userLang)}
         />
       ) : !hasResults && !showTranslation ? (
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
-          title="No results found"
-          description={`No results for "${debouncedText}"`}
+          title={t("noResults", userLang)}
+          description={t("noResultsMsg", userLang).replace("{query}", debouncedText)}
         />
       ) : (
         <>
           {showTranslation && results.translation && (
-            <List.Section title="Translation">
+            <List.Section title={t("translation", userLang)}>
               <List.Item
                 title={results.translation}
                 subtitle="→"
                 icon={{ source: Icon.Text, tintColor: Color.Yellow }}
                 detail={
                   <List.Item.Detail
-                    markdown={`> ${results.translation}\n\n---\n\n${debouncedText}${results.imageUrl ? `\n\n![Translation Image](${results.imageUrl})` : ""}`}
+                    markdown={`${debouncedText}\n\n---\n\n> ${results.translation}${results.imageUrl ? `\n\n![Translation Image](${results.imageUrl})` : ""}`}
                   />
                 }
                 actions={
                   <ActionPanel>
                     <Action
-                      title="Add Translated Sentence to Anki"
+                      title={t("addSentenceToAnki", userLang)}
                       icon={{ source: Icon.Plus, tintColor: Color.Green }}
                       shortcut={{ modifiers: ["cmd"], key: "a" }}
                       onAction={async () => {
@@ -1015,7 +1121,7 @@ export default function Command() {
                         if (!isConnected) {
                           await showToast({
                             style: Toast.Style.Failure,
-                            title: "Anki not connected",
+                            title: t("ankiNotConnected", userLang),
                           });
                           return;
                         }
@@ -1029,20 +1135,20 @@ export default function Command() {
                           );
                           await showToast({
                             style: Toast.Style.Success,
-                            title: "Added to Anki! ✅",
+                            title: t("addedToAnki", userLang),
                           });
                         } catch (error) {
                           const msg = String(error).toLowerCase();
                           if (msg.includes("duplicate")) {
                             await showToast({
                               style: Toast.Style.Failure,
-                              title: "Ya está en el mazo",
-                              message: `"${preferences.ankiDeck}" ya tiene esta tarjeta`,
+                              title: t("alreadyInDeck", userLang),
+                              message: t("alreadyInDeckMsg", userLang).replace("{deck}", preferences.ankiDeck),
                             });
                           } else {
                             await showToast({
                               style: Toast.Style.Failure,
-                              title: "Error al agregar",
+                              title: t("errorAdding", userLang),
                               message: String(error),
                             });
                           }
@@ -1050,7 +1156,7 @@ export default function Command() {
                       }}
                     />
                     <Action
-                      title="Play Audio"
+                      title={t("playAudio", userLang)}
                       icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
                       shortcut={{ modifiers: ["cmd"], key: "p" }}
                       onAction={async () => {
@@ -1062,12 +1168,12 @@ export default function Command() {
                           );
                           await showToast({
                             style: Toast.Style.Success,
-                            title: "Playing audio! 🔊",
+                            title: t("playingAudio", userLang),
                           });
                         } catch (error) {
                           await showToast({
                             style: Toast.Style.Failure,
-                            title: "Failed to play audio",
+                            title: t("failPlayAudio", userLang),
                             message: String(error),
                           });
                         }
@@ -1081,14 +1187,14 @@ export default function Command() {
 
           {results.words.length > 0 && (
             <List.Section
-              title="Words"
+              title={t("words", userLang)}
               subtitle={`${results.words.length}`}
             >
               {results.words.map((word, idx) => (
                 <WordListItem
                   key={`word-${word.reading.kanji || word.reading.kana}-${idx}`}
                   word={word}
-                  language={userLang}
+                  lang={userLang}
                   preferences={preferences}
                 />
               ))}
@@ -1097,7 +1203,7 @@ export default function Command() {
 
           {results.kanji.length > 0 && (
             <List.Section
-              title="Kanji"
+              title={t("kanji", userLang)}
               subtitle={`${results.kanji.length}`}
             >
               {results.kanji.map((kanji, idx) => (
@@ -1105,6 +1211,7 @@ export default function Command() {
                   key={`kanji-${kanji.literal}-${idx}`}
                   kanji={kanji}
                   preferences={preferences}
+                  lang={userLang}
                 />
               ))}
             </List.Section>
