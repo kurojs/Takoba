@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Action,
   ActionPanel,
@@ -28,9 +28,12 @@ interface Preferences {
   ankiDeck: string;
   ankiModel: string;
   ankiPort: string;
-  voicevoxPort: string;
-  voicevoxSpeaker: string;
+  elevenlabsApiKey: string;
+  elevenlabsVoiceId: string;
   userLanguage: string;
+  showTranslationImage: boolean;
+  gcsApiKey: string;
+  gcsCxId: string;
   autoLoadText: boolean;
 }
 
@@ -46,11 +49,17 @@ interface JotobaSense {
   language: string;
 }
 
+interface PitchItem {
+  part: string;
+  high: boolean;
+}
+
 interface JotobaWord {
   reading: JotobaReading;
   common: boolean;
   senses: JotobaSense[];
   audio?: string;
+  pitch?: PitchItem[];
 }
 
 interface JotobaKanji {
@@ -77,6 +86,8 @@ interface JotobaSentence {
 interface SearchResults {
   words: JotobaWord[];
   kanji: JotobaKanji[];
+  translation: string | null;
+  imageUrl: string | null;
 }
 
 // ────────────────────────────────────────────
@@ -132,8 +143,78 @@ async function fetchSentences(
   return (data.sentences || []) as JotobaSentence[];
 }
 
+const LANGUAGE_CODE_MAP: Record<string, string> = {
+  English: "en",
+  Spanish: "es",
+  German: "de",
+  French: "fr",
+  Russian: "ru",
+  Dutch: "nl",
+  Swedish: "sv",
+  Hungarian: "hu",
+  Slovenian: "sl",
+};
+
+async function translateViaGoogle(
+  query: string,
+  language: string,
+): Promise<string | null> {
+  const targetLang = LANGUAGE_CODE_MAP[language] || "en";
+  try {
+    const res = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=${targetLang}&dt=t&q=${encodeURIComponent(query)}`,
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as any;
+    if (!data || !Array.isArray(data) || !data[0] || !data[0][0]) return null;
+    return data[0][0][0] as string;
+  } catch {
+    return null;
+  }
+}
+
+async function searchTranslationImage(
+  query: string,
+  apiKey: string,
+  cxId: string,
+): Promise<string | null> {
+  if (!apiKey || !cxId) return null;
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cxId}&q=${encodeURIComponent(query)}&searchType=image&num=1&safe=active`,
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as any;
+    return data?.items?.[0]?.link || null;
+  } catch {
+    return null;
+  }
+}
+
 // ────────────────────────────────────────────
-// Anki helpers (same as translate extension)
+// Furigana parser
+// ────────────────────────────────────────────
+
+/** Parse Jotoba furigana format like 「[走|はし]る」 into html-ruby string */
+function parseFuriganaToHtml(input: string): string {
+  return input.replace(
+    /\[([^\|]+)\|([^\]]+)\]/g,
+    (_, kanji: string, kana: string) => {
+      return `<ruby>${kanji}<rt>${kana}</rt></ruby>`;
+    },
+  );
+}
+
+/** Parse furigana into plain text: 「[走|はし]る」 → 「走(はし)る」 */
+function parseFuriganaToPlain(input: string): string {
+  return input.replace(
+    /\[([^\|]+)\|([^\]]+)\]/g,
+    (_, kanji: string, kana: string) => `${kanji}(${kana})`,
+  );
+}
+
+// ────────────────────────────────────────────
+// Anki helpers
 // ────────────────────────────────────────────
 
 async function checkAnkiConnect(port: string = "8765"): Promise<boolean> {
@@ -246,10 +327,31 @@ async function addToAnki(
   else if (fields.includes("Word")) noteFields["Word"] = front;
   else noteFields[fields[0]] = front;
 
+  const frontFieldName = Object.keys(noteFields)[0];
+
   if (fields.includes("Back")) noteFields["Back"] = back;
   else if (fields.includes("Meaning")) noteFields["Meaning"] = back;
   else if (fields.includes("Translation")) noteFields["Translation"] = back;
   else noteFields[fields[1]] = back;
+
+  // Pre-check: findNotes to detect duplicates per deck
+  const frontValue = noteFields[frontFieldName];
+  const findRes = await fetch(`http://localhost:${port}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "findNotes",
+      version: 6,
+      params: {
+        query: `deck:"${deckName}" "${frontValue.replace(/"/g, '\\"')}"`,
+      },
+    }),
+  });
+  const findData = (await findRes.json()) as any;
+  if (findData.error) throw new Error(findData.error);
+  if (findData.result && findData.result.length > 0) {
+    throw new Error("DUPLICATE");
+  }
 
   const res = await fetch(`http://localhost:${port}`, {
     method: "POST",
@@ -262,8 +364,12 @@ async function addToAnki(
           deckName,
           modelName,
           fields: noteFields,
-          options: { allowDuplicate: false },
-          tags: ["vicinae", "japanese", "jotoba"],
+          options: {
+            allowDuplicate: false,
+            duplicateScope: "deck",
+            duplicateScopeOptions: { deckName },
+          },
+          tags: ["vicinae", "japanese", "kotoba"],
         },
       },
     }),
@@ -277,45 +383,51 @@ async function addToAnki(
 }
 
 // ────────────────────────────────────────────
-// VoiceVox helper (same as translate extension)
+// ElevenLabs TTS
 // ────────────────────────────────────────────
 
-async function playVoiceVoxAudio(
+async function playElevenLabsAudio(
   text: string,
-  speaker: string = "1",
-  port: string = "50021",
+  apiKey: string,
+  voiceId: string,
 ): Promise<void> {
-  // Step 1: audio query
-  const queryRes = await fetch(
-    `http://localhost:${port}/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`,
-    { method: "POST" },
-  );
-  if (!queryRes.ok)
-    throw new Error(`Audio query failed: ${queryRes.status}`);
-  const audioQuery = await queryRes.json();
+  if (!apiKey) {
+    throw new Error("ElevenLabs API key not configured");
+  }
 
-  // Step 2: synthesize
-  const synthRes = await fetch(
-    `http://localhost:${port}/synthesis?speaker=${speaker}`,
+  const res = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(audioQuery),
+      headers: {
+        "xi-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.5,
+        },
+      }),
     },
   );
-  if (!synthRes.ok)
-    throw new Error(`Synthesis failed: ${synthRes.status}`);
 
-  const audioBuffer = await synthRes.arrayBuffer();
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`ElevenLabs TTS failed (${res.status}): ${errText}`);
+  }
+
+  const audioBuffer = await res.arrayBuffer();
   const audioData = Buffer.from(audioBuffer);
 
   if (audioData.length === 0) throw new Error("Empty audio generated");
 
   const tempDir = environment.supportPath;
-  const audioPath = join(tempDir, `voicevox_${Date.now()}.wav`);
+  const audioPath = join(tempDir, `kotoba_tts_${Date.now()}.mp3`);
   await writeFile(audioPath, audioData);
 
-  // Step 3: play
   let playCommand = "";
   try {
     await execAsync("which ffplay");
@@ -359,7 +471,6 @@ function getBestSense(
   word: JotobaWord,
   language: string,
 ): { glosses: string[]; language: string; pos?: string } {
-  // Try user language first
   const langSense = word.senses.find((s) => s.language === language);
   if (langSense) {
     return {
@@ -368,7 +479,6 @@ function getBestSense(
       pos: formatPOS(langSense.pos),
     };
   }
-  // Fallback to English
   const engSense = word.senses.find((s) => s.language === "English");
   if (engSense) {
     return {
@@ -377,7 +487,6 @@ function getBestSense(
       pos: formatPOS(engSense.pos),
     };
   }
-  // First available
   if (word.senses.length > 0) {
     return {
       glosses: word.senses[0].glosses,
@@ -440,15 +549,12 @@ function buildWordDetailMarkdown(
 ): string {
   const lines: string[] = [];
 
-  // Title
   lines.push(`# ${formatWordTitle(word)}`);
 
-  // Part of speech
   if (sense.pos) {
     lines.push(`\n${sense.pos}`);
   }
 
-  // Definition
   lines.push(`\n${sense.glosses.join("; ")}`);
 
   return lines.join("\n");
@@ -462,7 +568,13 @@ function buildWordFullDetailMarkdown(
 ): string {
   let md = buildWordDetailMarkdown(word, sense);
 
-  // Example sentences
+  if (word.pitch && word.pitch.length > 0) {
+    const pitchStr = word.pitch
+      .map((p) => (p.high ? `**${p.part}**` : p.part))
+      .join("");
+    md += `\n\n**Pitch:** ${pitchStr}`;
+  }
+
   if (sentences.length > 0) {
     md += `\n\n---\n\n## Example Sentences\n\n`;
     md += sentences
@@ -497,7 +609,6 @@ function buildKanjiMarkdown(kanji: JotobaKanji): string {
   if (kanji.radical) details.push(`Radical: ${kanji.radical}`);
   lines.push(`\n${details.join(" · ")}`);
 
-  // Stroke order diagram
   const imgUrl = `https://jotoba.de/resource/kanji/frames/${encodeURIComponent(kanji.literal)}`;
   lines.push(`\n\n![Stroke Order](${imgUrl})`);
 
@@ -531,7 +642,6 @@ function WordListItem({
     language,
   );
 
-  // Fetch sentences when detail is shown
   useEffect(() => {
     let cancelled = false;
     const query = word.reading.kanji || word.reading.kana;
@@ -549,7 +659,6 @@ function WordListItem({
     };
   }, []);
 
-  // Build Anki back: part of speech + definitions + example sentences
   const ankiBack = (() => {
     const parts: string[] = [];
     if (sense.pos) parts.push(sense.pos);
@@ -614,11 +723,20 @@ function WordListItem({
                   message: `Card added to ${preferences.ankiDeck}`,
                 });
               } catch (error) {
-                await showToast({
-                  style: Toast.Style.Failure,
-                  title: "Failed to add to Anki",
-                  message: String(error),
-                });
+                const msg = String(error).toLowerCase();
+                if (msg.includes("duplicate")) {
+                  await showToast({
+                    style: Toast.Style.Failure,
+                    title: "Ya está en el mazo",
+                    message: `"${preferences.ankiDeck}" ya tiene esta tarjeta`,
+                  });
+                } else {
+                  await showToast({
+                    style: Toast.Style.Failure,
+                    title: "Error al agregar",
+                    message: String(error),
+                  });
+                }
               }
             }}
           />
@@ -629,10 +747,10 @@ function WordListItem({
             onAction={async () => {
               const text = word.reading.kana;
               try {
-                await playVoiceVoxAudio(
+                await playElevenLabsAudio(
                   text,
-                  preferences.voicevoxSpeaker,
-                  preferences.voicevoxPort,
+                  preferences.elevenlabsApiKey,
+                  preferences.elevenlabsVoiceId,
                 );
                 await showToast({
                   style: Toast.Style.Success,
@@ -698,7 +816,6 @@ function KanjiListItem({
   const subtitle = formatKanjiReadings(kanji.onyomi, kanji.kunyomi);
   const detailMd = buildKanjiMarkdown(kanji);
 
-  // Build Anki back for kanji
   const ankiBack = [
     kanji.meanings.join(", "),
     "",
@@ -749,11 +866,20 @@ function KanjiListItem({
                   message: `Card added to ${preferences.ankiDeck}`,
                 });
               } catch (error) {
-                await showToast({
-                  style: Toast.Style.Failure,
-                  title: "Failed to add to Anki",
-                  message: String(error),
-                });
+                const msg = String(error).toLowerCase();
+                if (msg.includes("duplicate")) {
+                  await showToast({
+                    style: Toast.Style.Failure,
+                    title: "Ya está en el mazo",
+                    message: `"${preferences.ankiDeck}" ya tiene esta tarjeta`,
+                  });
+                } else {
+                  await showToast({
+                    style: Toast.Style.Failure,
+                    title: "Error al agregar",
+                    message: String(error),
+                  });
+                }
               }
             }}
           />
@@ -811,11 +937,12 @@ export default function Command() {
   const [results, setResults] = useState<SearchResults>({
     words: [],
     kanji: [],
+    translation: null,
+    imageUrl: null,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Auto-load text from clipboard on startup
   useEffect(() => {
     const loadInitialText = async () => {
       try {
@@ -835,7 +962,6 @@ export default function Command() {
     loadInitialText();
   }, []);
 
-  // Debounce
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedText(searchText.trim());
@@ -843,10 +969,9 @@ export default function Command() {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  // Search Jotoba
   useEffect(() => {
     if (!debouncedText) {
-      setResults({ words: [], kanji: [] });
+      setResults({ words: [], kanji: [], translation: null, imageUrl: null });
       setHasSearched(false);
       return;
     }
@@ -855,11 +980,15 @@ export default function Command() {
       setIsLoading(true);
       setHasSearched(true);
       try {
-        const [words, kanji] = await Promise.all([
+        const [words, kanji, translation, imageUrl] = await Promise.all([
           searchWords(debouncedText, userLang),
           searchKanji(debouncedText, userLang),
+          translateViaGoogle(debouncedText, userLang),
+          preferences.showTranslationImage
+            ? searchTranslationImage(debouncedText, preferences.gcsApiKey, preferences.gcsCxId)
+            : Promise.resolve(null),
         ]);
-        setResults({ words, kanji });
+        setResults({ words, kanji, translation, imageUrl });
       } catch (error) {
         await showToast({
           style: Toast.Style.Failure,
@@ -876,22 +1005,23 @@ export default function Command() {
 
   const hasResults = results.words.length > 0 || results.kanji.length > 0;
 
+  const showTranslation = !!results.translation;
+
   return (
     <List
-      searchBarPlaceholder="Search Japanese words or kanji..."
+      searchBarPlaceholder="Search Japanese words, kanji, or phrases..."
       searchText={searchText}
       onSearchTextChange={setSearchText}
       isLoading={isLoading}
       isShowingDetail={hasResults}
-      throttle={true}
     >
       {!hasSearched ? (
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
-          title="Search Jotoba"
-          description="Type a word or kanji to search"
+          title="Search Kotoba"
+          description="Type a word, kanji, or phrase to search"
         />
-      ) : !hasResults ? (
+      ) : !hasResults && !showTranslation ? (
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
           title="No results found"
@@ -899,6 +1029,94 @@ export default function Command() {
         />
       ) : (
         <>
+          {showTranslation && results.translation && (
+            <List.Section title="Translation">
+              <List.Item
+                title={results.translation}
+                subtitle="→"
+                icon={{ source: Icon.Text, tintColor: Color.Yellow }}
+                detail={
+                  <List.Item.Detail
+                    markdown={`> ${results.translation}\n\n---\n\n${debouncedText}${results.imageUrl ? `\n\n![Translation Image](${results.imageUrl})` : ""}`}
+                  />
+                }
+                actions={
+                  <ActionPanel>
+                    <Action
+                      title="Add Translated Sentence to Anki"
+                      icon={{ source: Icon.Plus, tintColor: Color.Green }}
+                      shortcut={{ modifiers: ["cmd"], key: "a" }}
+                      onAction={async () => {
+                        const isConnected = await checkAnkiConnect(
+                          preferences.ankiPort,
+                        );
+                        if (!isConnected) {
+                          await showToast({
+                            style: Toast.Style.Failure,
+                            title: "Anki not connected",
+                          });
+                          return;
+                        }
+                        try {
+                          await addToAnki(
+                            preferences.ankiDeck,
+                            preferences.ankiModel,
+                            debouncedText,
+                            `${results.translation}`,
+                            preferences.ankiPort,
+                          );
+                          await showToast({
+                            style: Toast.Style.Success,
+                            title: "Added to Anki! ✅",
+                          });
+                        } catch (error) {
+                          const msg = String(error).toLowerCase();
+                          if (msg.includes("duplicate")) {
+                            await showToast({
+                              style: Toast.Style.Failure,
+                              title: "Ya está en el mazo",
+                              message: `"${preferences.ankiDeck}" ya tiene esta tarjeta`,
+                            });
+                          } else {
+                            await showToast({
+                              style: Toast.Style.Failure,
+                              title: "Error al agregar",
+                              message: String(error),
+                            });
+                          }
+                        }
+                      }}
+                    />
+                    <Action
+                      title="Play Audio"
+                      icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
+                      shortcut={{ modifiers: ["cmd"], key: "p" }}
+                      onAction={async () => {
+                        try {
+                          await playElevenLabsAudio(
+                            debouncedText,
+                            preferences.elevenlabsApiKey,
+                            preferences.elevenlabsVoiceId,
+                          );
+                          await showToast({
+                            style: Toast.Style.Success,
+                            title: "Playing audio! 🔊",
+                          });
+                        } catch (error) {
+                          await showToast({
+                            style: Toast.Style.Failure,
+                            title: "Failed to play audio",
+                            message: String(error),
+                          });
+                        }
+                      }}
+                    />
+                  </ActionPanel>
+                }
+              />
+            </List.Section>
+          )}
+
           {results.words.length > 0 && (
             <List.Section
               title="Words"
@@ -915,6 +1133,7 @@ export default function Command() {
               ))}
             </List.Section>
           )}
+
           {results.kanji.length > 0 && (
             <List.Section
               title="Kanji"

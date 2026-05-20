@@ -1,17 +1,17 @@
 {
-  "name": "jotoba-anki",
-  "title": "Jotoba + Anki",
-  "description": "Japanese dictionary with Anki integration — search Jotoba, add cards to Anki",
+  "name": "kotoba",
+  "title": "言葉",
+  "description": "Japanese dictionary, translator, and Anki integration — search Jotoba, translate sentences, add cards to Anki",
   "icon": "icon.svg",
   "author": "kuro",
   "license": "MIT",
   "categories": ["Productivity", "Education"],
   "commands": [
     {
-      "name": "jotoba",
-      "title": "Jotoba + Anki",
-      "subtitle": "Japanese Dictionary",
-      "description": "Search Jotoba for words and kanji, add to Anki",
+      "name": "kotoba",
+      "title": "Kotoba",
+      "subtitle": "Japanese Dictionary & Translator",
+      "description": "Search Jotoba for words, kanji, and sentences; add to Anki; TTS with ElevenLabs",
       "mode": "view",
       "preferences": [
         {
@@ -39,20 +39,20 @@
           "default": "8765"
         },
         {
-          "name": "voicevoxPort",
-          "title": "VoiceVox Port",
-          "description": "Port where VoiceVox is running",
-          "type": "textfield",
+          "name": "elevenlabsApiKey",
+          "title": "ElevenLabs API Key",
+          "description": "API key for ElevenLabs text-to-speech (leave empty to disable TTS)",
+          "type": "password",
           "required": false,
-          "default": "50021"
+          "default": ""
         },
         {
-          "name": "voicevoxSpeaker",
-          "title": "VoiceVox Speaker ID",
-          "description": "Speaker ID to use for Japanese audio (1-50+)",
+          "name": "elevenlabsVoiceId",
+          "title": "ElevenLabs Voice ID",
+          "description": "Voice ID for ElevenLabs TTS (default: 21m00Tcm4TlvDq8ikWAM — Rachel)",
           "type": "textfield",
           "required": false,
-          "default": "1"
+          "default": "21m00Tcm4TlvDq8ikWAM"
         },
         {
           "name": "userLanguage",
@@ -61,6 +61,30 @@
           "type": "textfield",
           "required": false,
           "default": "Spanish"
+        },
+        {
+          "name": "showTranslationImage",
+          "title": "Show Translation Image",
+          "description": "Show a relevant image below the translation (requires Google Custom Search API)",
+          "type": "checkbox",
+          "required": false,
+          "default": false
+        },
+        {
+          "name": "gcsApiKey",
+          "title": "Google Custom Search API Key",
+          "description": "API key for Google Custom Search (for translation images). Get one at https://console.cloud.google.com",
+          "type": "password",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "gcsCxId",
+          "title": "Google Custom Search Engine ID (cx)",
+          "description": "Search Engine ID for Google Custom Search. Create one at https://cse.google.com/cse/",
+          "type": "textfield",
+          "required": false,
+          "default": ""
         },
         {
           "name": "autoLoadText",
