@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Action,
   ActionPanel,
@@ -189,28 +189,6 @@ async function searchTranslationImage(
   } catch {
     return null;
   }
-}
-
-// ────────────────────────────────────────────
-// Furigana parser
-// ────────────────────────────────────────────
-
-/** Parse Jotoba furigana format like 「[走|はし]る」 into html-ruby string */
-function parseFuriganaToHtml(input: string): string {
-  return input.replace(
-    /\[([^\|]+)\|([^\]]+)\]/g,
-    (_, kanji: string, kana: string) => {
-      return `<ruby>${kanji}<rt>${kana}</rt></ruby>`;
-    },
-  );
-}
-
-/** Parse furigana into plain text: 「[走|はし]る」 → 「走(はし)る」 */
-function parseFuriganaToPlain(input: string): string {
-  return input.replace(
-    /\[([^\|]+)\|([^\]]+)\]/g,
-    (_, kanji: string, kana: string) => `${kanji}(${kana})`,
-  );
 }
 
 // ────────────────────────────────────────────
@@ -531,18 +509,6 @@ function formatKanjiReadings(onyomi?: string[], kunyomi?: string[]): string {
   return parts.join(" | ");
 }
 
-function buildWordBack(
-  word: JotobaWord,
-  sense: { glosses: string[]; language: string; pos?: string },
-): string {
-  const parts: string[] = [];
-
-  if (sense.pos) parts.push(sense.pos);
-  parts.push(sense.glosses.join("; "));
-
-  return parts.join("\n\n");
-}
-
 function buildWordDetailMarkdown(
   word: JotobaWord,
   sense: { glosses: string[]; language: string; pos?: string },
@@ -564,7 +530,6 @@ function buildWordFullDetailMarkdown(
   word: JotobaWord,
   sense: { glosses: string[]; language: string; pos?: string },
   sentences: JotobaSentence[],
-  language: string,
 ): string {
   let md = buildWordDetailMarkdown(word, sense);
 
@@ -621,12 +586,10 @@ function buildKanjiMarkdown(kanji: JotobaKanji): string {
 
 function WordListItem({
   word,
-  searchText,
   language,
   preferences,
 }: {
   word: JotobaWord;
-  searchText: string;
   language: string;
   preferences: Preferences;
 }) {
@@ -639,7 +602,6 @@ function WordListItem({
     word,
     sense,
     sentences,
-    language,
   );
 
   useEffect(() => {
@@ -1126,7 +1088,6 @@ export default function Command() {
                 <WordListItem
                   key={`word-${word.reading.kanji || word.reading.kana}-${idx}`}
                   word={word}
-                  searchText={debouncedText}
                   language={userLang}
                   preferences={preferences}
                 />
