@@ -1008,7 +1008,7 @@ function KanjiListItem({
               icon={Icon.Clipboard}
               shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
               onAction={async () => {
-                await Clipboard.copy(kanji.meanings.join(", "));
+                await Clipboard.copy(translatedMeaning || kanji.meanings.join(", "));
                 await showToast({
                   style: Toast.Style.Success,
                   title: t("copied", lang),
