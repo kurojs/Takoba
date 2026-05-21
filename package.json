@@ -76,26 +76,10 @@
         {
           "name": "showTranslationImage",
           "title": "Show Translation Image",
-          "description": "Show a relevant image below the translation (requires Google Custom Search API)",
+          "description": "Show a relevant image from Wikimedia Commons below the translation",
           "type": "checkbox",
           "required": false,
           "default": false
-        },
-        {
-          "name": "gcsApiKey",
-          "title": "Google Custom Search API Key",
-          "description": "API key for Google Custom Search (for translation images). Get one at https://console.cloud.google.com",
-          "type": "password",
-          "required": false,
-          "default": ""
-        },
-        {
-          "name": "gcsCxId",
-          "title": "Google Custom Search Engine ID (cx)",
-          "description": "Search Engine ID for Google Custom Search. Create one at https://cse.google.com/cse/",
-          "type": "textfield",
-          "required": false,
-          "default": ""
         },
         {
           "name": "autoLoadText",
@@ -104,6 +88,85 @@
           "type": "checkbox",
           "required": false,
           "default": true
+        },
+        {
+          "name": "geminiApiKey",
+          "title": "Gemini API Key",
+          "description": "API key from Google AI Studio (https://aistudio.google.com/) — required for AI explanations",
+          "type": "password",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "geminiModel",
+          "title": "AI Model",
+          "description": "Gemini model to use for AI explanations",
+          "type": "dropdown",
+          "required": false,
+          "default": "gemini-2.5-flash",
+          "data": [
+            { "title": "Gemini 2.5 Flash", "value": "gemini-2.5-flash" },
+            { "title": "Gemini 2.5 Pro", "value": "gemini-2.5-pro" },
+            { "title": "Gemini 2.5 Flash-Lite", "value": "gemini-2.5-flash-lite" },
+            { "title": "Gemini 2.5 Flash-Lite Preview (Sep 2025)", "value": "gemini-2.5-flash-lite-preview-09-2025" },
+            { "title": "Gemini 3.1 Pro Preview", "value": "gemini-3.1-pro-preview" },
+            { "title": "Gemini 3.1 Flash-Lite Preview", "value": "gemini-3.1-flash-lite-preview" },
+            { "title": "Gemini 3.1 Pro Custom Tools", "value": "gemini-3.1-pro-preview-customtools" },
+            { "title": "Gemini 3 Pro Preview", "value": "gemini-3-pro-preview" },
+            { "title": "Gemini 3 Flash Preview", "value": "gemini-3-flash-preview" },
+            { "title": "Gemma 3 27B", "value": "gemma-3-27b-it" },
+            { "title": "Gemma 3 12B", "value": "gemma-3-12b-it" },
+            { "title": "Gemma 3 4B", "value": "gemma-3-4b-it" },
+            { "title": "Gemma 3 1B", "value": "gemma-3-1b-it" },
+            { "title": "Deep Research Pro Preview", "value": "deep-research-pro-preview-12-2025" }
+          ]
+        },
+        {
+          "name": "geminiCustomPrompt",
+          "title": "Custom AI Prompt",
+          "description": "Extra instructions for AI explanations (personality, style, format, etc.)",
+          "type": "textfield",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "geminiAiLanguage",
+          "title": "AI Response Language",
+          "description": "Language for AI explanations — AI will respond in this language",
+          "type": "dropdown",
+          "required": false,
+          "default": "Spanish",
+          "data": [
+            { "title": "English", "value": "English" },
+            { "title": "Spanish", "value": "Spanish" },
+            { "title": "Japanese", "value": "Japanese" },
+            { "title": "Chinese", "value": "Chinese" },
+            { "title": "Korean", "value": "Korean" },
+            { "title": "French", "value": "French" },
+            { "title": "German", "value": "German" },
+            { "title": "Italian", "value": "Italian" },
+            { "title": "Portuguese", "value": "Portuguese" },
+            { "title": "Russian", "value": "Russian" },
+            { "title": "Arabic", "value": "Arabic" },
+            { "title": "Hindi", "value": "Hindi" },
+            { "title": "Thai", "value": "Thai" },
+            { "title": "Vietnamese", "value": "Vietnamese" },
+            { "title": "Indonesian", "value": "Indonesian" },
+            { "title": "Dutch", "value": "Dutch" },
+            { "title": "Swedish", "value": "Swedish" },
+            { "title": "Polish", "value": "Polish" },
+            { "title": "Turkish", "value": "Turkish" },
+            { "title": "Greek", "value": "Greek" },
+            { "title": "Hebrew", "value": "Hebrew" }
+          ]
+        },
+        {
+          "name": "elevenlabsAiVoiceId",
+          "title": "ElevenLabs AI Voice ID",
+          "description": "Voice ID for reading AI explanations aloud (default: 21m00Tcm4TlvDq8ikWAM — Rachel)",
+          "type": "textfield",
+          "required": false,
+          "default": "21m00Tcm4TlvDq8ikWAM"
         }
       ]
     }

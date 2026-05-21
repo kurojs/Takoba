@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Action,
   ActionPanel,
   Clipboard,
   List,
+  Detail,
   getPreferenceValues,
   getSelectedText,
   showToast,
@@ -54,6 +55,7 @@ const UI: Record<string, Record<string, string>> = {
     copyKanji: "Copy Kanji",
     copyMeanings: "Copy Meanings",
     openOnJotoba: "Open on Jotoba",
+    viewStrokeOrder: "View Stroke Order",
     copied: "Copied!",
     addedToAnki: "Added to Anki! ✅",
     playingAudio: "Playing audio! 🔊",
@@ -70,6 +72,9 @@ const UI: Record<string, Record<string, string>> = {
     errorAdding: "Error adding to Anki",
     errorAddingMsg: "{msg}",
     failPlayAudio: "Failed to play audio",
+    copyResponse: "Copy Response",
+    explainWithAI: "Explain with AI",
+    aiLoading: "Generating explanation",
   },
   Spanish: {
     translation: "Traducción",
@@ -93,6 +98,7 @@ const UI: Record<string, Record<string, string>> = {
     copyKanji: "Copiar Kanji",
     copyMeanings: "Copiar Significados",
     openOnJotoba: "Abrir en Jotoba",
+    viewStrokeOrder: "Ver Orden de Trazos",
     copied: "¡Copiado!",
     addedToAnki: "¡Agregado a Anki! ✅",
     playingAudio: "¡Reproduciendo audio! 🔊",
@@ -109,6 +115,9 @@ const UI: Record<string, Record<string, string>> = {
     errorAdding: "Error al agregar",
     errorAddingMsg: "{msg}",
     failPlayAudio: "Error al reproducir audio",
+    copyResponse: "Copiar Respuesta",
+    explainWithAI: "Explicar con IA",
+    aiLoading: "Generando explicación",
   },
 };
 
@@ -126,11 +135,14 @@ interface Preferences {
   ankiPort: string;
   elevenlabsApiKey: string;
   elevenlabsVoiceId: string;
+  elevenlabsAiVoiceId: string;
   userLanguage: string;
   showTranslationImage: boolean;
-  gcsApiKey: string;
-  gcsCxId: string;
   autoLoadText: boolean;
+  geminiApiKey: string;
+  geminiModel: string;
+  geminiCustomPrompt: string;
+  geminiAiLanguage: string;
 }
 
 interface JotobaReading {
@@ -269,22 +281,44 @@ async function translateViaGoogle(
   }
 }
 
-async function searchTranslationImage(
-  query: string,
-  apiKey: string,
-  cxId: string,
+async function translateText(
+  text: string,
+  from: string,
+  to: string,
 ): Promise<string | null> {
-  if (!apiKey || !cxId) return null;
   try {
     const res = await fetch(
-      `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cxId}&q=${encodeURIComponent(query)}&searchType=image&num=1&safe=active`,
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`,
     );
     if (!res.ok) return null;
     const data = (await res.json()) as any;
-    return data?.items?.[0]?.link || null;
+    return data?.[0]?.[0]?.[0] || null;
   } catch {
     return null;
   }
+}
+
+async function searchWikiImage(query: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url&format=json&origin=*`,
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as any;
+    const pages = data?.query?.pages;
+    if (!pages) return null;
+    const pageId = Object.keys(pages)[0];
+    return pages[pageId]?.imageinfo?.[0]?.url || null;
+  } catch {
+    return null;
+  }
+}
+
+function imageSearchTerm(debouncedText: string, firstWord: JotobaWord | undefined): string {
+  if (firstWord && /[\u4e00-\u9fff\u3400-\u4dbf]/.test(debouncedText)) {
+    return firstWord.senses[0]?.glosses[0] || debouncedText;
+  }
+  return debouncedText;
 }
 
 // ────────────────────────────────────────────
@@ -613,10 +647,6 @@ function buildWordDetailMarkdown(
 
   lines.push(`# ${formatWordTitle(word)}`);
 
-  if (sense.pos) {
-    lines.push(`\n${sense.pos}`);
-  }
-
   lines.push(`\n${sense.glosses.join("; ")}`);
 
   return lines.join("\n");
@@ -650,24 +680,22 @@ function buildWordFullDetailMarkdown(
   if (sentences.length > 0) {
     md += `\n\n---\n\n## ${t("exampleSentences", lang)}\n\n`;
     md += sentences
-      .map((s) => `- ${s.content} → ${s.translation}`)
-      .join("\n");
+      .map((s) => `${s.content}<br>${s.translation}`)
+      .join("<br><br>");
   }
 
   return md;
 }
 
-function buildKanjiMarkdown(kanji: JotobaKanji, lang: Lang): string {
+function buildKanjiMarkdown(kanji: JotobaKanji, lang: Lang, meaningOverride?: string): string {
   const lines: string[] = [];
   lines.push(`# ${kanji.literal}`);
-  lines.push(`\n${kanji.meanings.join(", ")}`);
+  lines.push(`\n${meaningOverride || kanji.meanings.join(", ")}`);
 
-  const readings: string[] = [];
   if (kanji.onyomi && kanji.onyomi.length > 0)
-    readings.push(`**${t("onyomi", lang)}:** ${kanji.onyomi.join("・")}`);
+    lines.push(`\n**On:** ${kanji.onyomi.join("・")}`);
   if (kanji.kunyomi && kanji.kunyomi.length > 0)
-    readings.push(`**${t("kunyomi", lang)}:** ${kanji.kunyomi.join("・")}`);
-  if (readings.length > 0) lines.push(`\n${readings.join(" | ")}`);
+    lines.push(`\n**Kun:** ${kanji.kunyomi.join("・")}`);
 
   const details: string[] = [];
   details.push(`JLPT N${kanji.jlpt} · ${t("grade", lang)} ${kanji.grade} · ${kanji.stroke_count} ${t("strokes", lang)}`);
@@ -676,191 +704,167 @@ function buildKanjiMarkdown(kanji: JotobaKanji, lang: Lang): string {
   lines.push(`\n${details.join(" · ")}`);
 
   const imgUrl = `https://jotoba.de/resource/kanji/frames/${encodeURIComponent(kanji.literal)}`;
-  lines.push(`\n\n![${t("strokeOrder", lang)}](${imgUrl})`);
+  lines.push(`\n\n[![](${imgUrl})](${imgUrl})`);
 
   return lines.join("\n");
 }
 
 // ────────────────────────────────────────────
-// Components
+// Gemini AI
 // ────────────────────────────────────────────
 
-function WordListItem({
-  word,
+const INTERNAL_SYSTEM_PROMPT = `You are a helpful Japanese language learning assistant. Provide clear, pedagogical explanations about Japanese words, kanji, phrases, and grammar.
+
+Structure each response based on what is being asked:
+- **Words**: reading (kana), meaning, common usage, and a short example sentence
+- **Kanji**: meaning, on'yomi / kun'yomi, common words that use it, visual components breakdown
+- **Phrases / Grammar**: meaning, structure/formation, when to use it, and examples
+- **General text**: brief summary, key vocabulary breakdown, grammar points
+
+Keep explanations concise but informative. Use examples to illustrate. Be encouraging. Format your response in clean markdown with clear sections.`;
+
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+
+async function queryGemini(
+  query: string,
+  apiKey: string,
+  model: string,
+  customPrompt: string,
+  language: string,
+): Promise<string> {
+  const contents: { role: string; parts: { text: string }[] }[] = [];
+
+  if (customPrompt.trim()) {
+    contents.push({ role: "user", parts: [{ text: customPrompt.trim() }] });
+    contents.push({ role: "model", parts: [{ text: "Understood. I will follow these instructions for every response." }] });
+  }
+
+  const systemMsg = `${INTERNAL_SYSTEM_PROMPT}\n\nRespond in ${language}.`;
+  contents.push({ role: "user", parts: [{ text: systemMsg }] });
+  contents.push({ role: "model", parts: [{ text: "Understood. I'll provide clear pedagogical explanations." }] });
+
+  contents.push({ role: "user", parts: [{ text: query }] });
+
+  const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contents }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Gemini API error (${res.status}): ${errBody}`);
+  }
+
+  const data = (await res.json()) as any;
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || "⚠️ No response from AI";
+}
+
+function AIExplainView({
+  query,
+  geminiApiKey,
+  model,
+  customPrompt,
+  aiLanguage,
+  elevenlabsApiKey,
+  aiVoiceId,
   lang,
-  preferences,
+  onBack,
 }: {
-  word: JotobaWord;
+  query: string;
+  geminiApiKey: string;
+  model: string;
+  customPrompt: string;
+  aiLanguage: string;
+  elevenlabsApiKey: string;
+  aiVoiceId: string;
   lang: Lang;
-  preferences: Preferences;
+  onBack: () => void;
 }) {
-  const [sentences, setSentences] = useState<JotobaSentence[]>([]);
-  const [sentencesLoading, setSentencesLoading] = useState(false);
-  const sense = getBestSense(word, lang);
-  const title = formatWordTitle(word);
-  const subtitle = sense.glosses[0];
-  const detailMd = buildWordFullDetailMarkdown(
-    word,
-    sense,
-    sentences,
-    lang,
-  );
+  const [response, setResponse] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    const query = word.reading.kanji || word.reading.kana;
-    if (query && sentences.length === 0 && !sentencesLoading) {
-      setSentencesLoading(true);
-      fetchSentences(query, lang).then((s) => {
-        if (!cancelled) {
-          setSentences(s);
-          setSentencesLoading(false);
-        }
+    queryGemini(query, geminiApiKey, model, customPrompt, aiLanguage)
+      .then((text) => {
+        if (!cancelled) setResponse(text);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
       });
-    }
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  const ankiBack = (() => {
-    const parts: string[] = [];
-    if (sense.pos) parts.push(sense.pos);
-    parts.push(sense.glosses.join("; "));
-    if (sentences.length > 0) {
-      parts.push(
-        "",
-        "Example Sentences:",
-        ...sentences.map(
-          (s) => `${s.content} → ${s.translation}`,
-        ),
-      );
-    }
-    return parts.join("\n\n");
-  })();
+  if (isLoading) {
+    return (
+      <Detail
+        markdown={`<br><br><br><br><br><br><center>_${t("aiLoading", lang)}…_</center>`}
+        actions={
+          <ActionPanel>
+            <Action title="Back" icon={Icon.ArrowLeft} onAction={onBack} />
+          </ActionPanel>
+        }
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Detail
+        markdown={`# ❌ ${t("errorAdding", lang)}\n\n\`\`\`\n${error}\n\`\`\``}
+        actions={
+          <ActionPanel>
+            <Action title="Back" icon={Icon.ArrowLeft} onAction={onBack} />
+          </ActionPanel>
+        }
+      />
+    );
+  }
 
   return (
-    <List.Item
-      title={title}
-      subtitle={subtitle}
-      icon={
-        word.common
-          ? { source: Icon.Dot, tintColor: Color.Green }
-          : undefined
-      }
-      detail={
-        <List.Item.Detail
-          markdown={detailMd}
-        />
-      }
+    <Detail
+      markdown={response}
       actions={
         <ActionPanel>
-          <Action
-            title={t("addToAnki", lang)}
-            icon={{ source: Icon.Plus, tintColor: Color.Green }}
-            shortcut={{ modifiers: ["cmd"], key: "a" }}
-            onAction={async () => {
-              const query = word.reading.kanji || word.reading.kana;
-              if (!query) return;
-              const isConnected = await checkAnkiConnect(
-                preferences.ankiPort,
-              );
-              if (!isConnected) {
-                await showToast({
-                  style: Toast.Style.Failure,
-                  title: t("ankiNotConnected", lang),
-                  message: t("ankiNotConnectedMsg", lang).replace("{port}", String(preferences.ankiPort)),
-                });
-                return;
-              }
-              try {
-                await addToAnki(
-                  preferences.ankiDeck,
-                  preferences.ankiModel,
-                  title,
-                  ankiBack,
-                  preferences.ankiPort,
-                );
-                await showToast({
-                  style: Toast.Style.Success,
-                  title: t("addedToAnki", lang),
-                  message: t("cardAddedMsg", lang).replace("{deck}", preferences.ankiDeck),
-                });
-              } catch (error) {
-                const msg = String(error).toLowerCase();
-                if (msg.includes("duplicate")) {
+          <Action title="Back" icon={Icon.ArrowLeft} onAction={onBack} />
+          {aiVoiceId && (
+            <Action
+              title={t("playAudio", lang)}
+              icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
+              shortcut={{ modifiers: [], key: "return" }}
+              onAction={async () => {
+                try {
+                  await playElevenLabsAudio(
+                    response.replace(/[*#\[\]`>|_~-]/g, "").slice(0, 2000),
+                    elevenlabsApiKey,
+                    aiVoiceId,
+                  );
                   await showToast({
-                    style: Toast.Style.Failure,
-                    title: t("alreadyInDeck", lang),
-                    message: t("alreadyInDeckMsg", lang).replace("{deck}", preferences.ankiDeck),
+                    style: Toast.Style.Success,
+                    title: t("playingAudio", lang),
                   });
-                } else {
+                } catch (e) {
                   await showToast({
                     style: Toast.Style.Failure,
-                    title: t("errorAdding", lang),
-                    message: String(error),
+                    title: t("failPlayAudio", lang),
+                    message: String(e),
                   });
                 }
-              }
             }}
           />
+          )}
           <Action
-            title={t("playAudio", lang)}
-            icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
-            shortcut={{ modifiers: ["cmd"], key: "p" }}
+            title={t("copyResponse", lang)}
+            icon={Icon.Clipboard}
+            shortcut={{ modifiers: ["cmd"], key: "c" }}
             onAction={async () => {
-              const text = word.reading.kana;
-              try {
-                await playElevenLabsAudio(
-                  text,
-                  preferences.elevenlabsApiKey,
-                  preferences.elevenlabsVoiceId,
-                );
-                await showToast({
-                  style: Toast.Style.Success,
-                  title: t("playingAudio", lang),
-                });
-              } catch (error) {
-                await showToast({
-                  style: Toast.Style.Failure,
-                  title: t("failPlayAudio", lang),
-                  message: String(error),
-                });
-              }
-            }}
-          />
-          <ActionPanel.Section title={t("copy", lang)}>
-            <Action
-              title={t("copyWord", lang)}
-              icon={Icon.Clipboard}
-              shortcut={{ modifiers: ["cmd"], key: "c" }}
-              onAction={async () => {
-                await Clipboard.copy(title);
-                await showToast({
-                  style: Toast.Style.Success,
-                  title: t("copied", lang),
-                });
-              }}
-            />
-            <Action
-              title={t("copyDefinition", lang)}
-              icon={Icon.Clipboard}
-              shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-              onAction={async () => {
-                await Clipboard.copy(sense.glosses.join("; "));
-                await showToast({
-                  style: Toast.Style.Success,
-                  title: t("copied", lang),
-                });
-              }}
-            />
-          </ActionPanel.Section>
-          <Action
-            title={t("openOnJotoba", lang)}
-            icon={Icon.Globe}
-            onAction={async () => {
-              const query = word.reading.kanji || word.reading.kana;
-              exec(`xdg-open "https://jotoba.de/search/${encodeURIComponent(query)}"`);
+              await Clipboard.copy(response);
+              await showToast({ style: Toast.Style.Success, title: t("copied", lang) });
             }}
           />
         </ActionPanel>
@@ -873,14 +877,30 @@ function KanjiListItem({
   kanji,
   preferences,
   lang,
+  onRequestAI,
 }: {
   kanji: JotobaKanji;
   preferences: Preferences;
   lang: Lang;
+  onRequestAI: (query: string) => void;
 }) {
+  const [translatedMeaning, setTranslatedMeaning] = useState("");
   const title = kanji.literal;
   const subtitle = formatKanjiReadings(kanji.onyomi, kanji.kunyomi);
-  const detailMd = buildKanjiMarkdown(kanji, lang);
+  const detailMd = buildKanjiMarkdown(kanji, lang, translatedMeaning || undefined);
+
+  useEffect(() => {
+    if (lang === "English") return;
+    let cancelled = false;
+    translateText(
+      kanji.meanings.join(", "),
+      "en",
+      LANGUAGE_CODE_MAP[lang] || "en",
+    ).then((t) => {
+      if (!cancelled && t) setTranslatedMeaning(t);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const ankiBack = [
     kanji.meanings.join(", "),
@@ -949,6 +969,22 @@ function KanjiListItem({
               }
             }}
           />
+          {preferences.geminiApiKey && (
+            <Action
+              title={t("explainWithAI", lang)}
+              icon={{ source: Icon.Wand, tintColor: Color.Purple }}
+              shortcut={{ modifiers: [], key: "tab" }}
+              onAction={() => onRequestAI(kanji.literal)}
+            />
+          )}
+          <Action
+            title={t("viewStrokeOrder", lang)}
+            icon={Icon.Image}
+            onAction={() => {
+              const imgUrl = `https://jotoba.de/resource/kanji/frames/${encodeURIComponent(kanji.literal)}`;
+              exec(`xdg-open "${imgUrl}"`);
+            }}
+          />
           <ActionPanel.Section title={t("copy", lang)}>
             <Action
               title={t("copyKanji", lang)}
@@ -982,6 +1018,224 @@ function KanjiListItem({
               exec(
                 `xdg-open "https://jotoba.de/search/${encodeURIComponent(kanji.literal)}"`,
               );
+            }}
+          />
+        </ActionPanel>
+      }
+    />
+  );
+}
+
+function WordListItem({
+  word,
+  lang,
+  preferences,
+  searchText,
+  onRequestAI,
+}: {
+  word: JotobaWord;
+  lang: Lang;
+  preferences: Preferences;
+  searchText: string;
+  onRequestAI: (query: string) => void;
+}) {
+  const [sentences, setSentences] = useState<JotobaSentence[]>([]);
+  const [sentencesLoading, setSentencesLoading] = useState(false);
+  const [translatedGlosses, setTranslatedGlosses] = useState<string[]>([]);
+  const sense = getBestSense(word, lang);
+  const displayGlosses = translatedGlosses.length > 0 ? translatedGlosses : sense.glosses;
+  const title = formatWordTitle(word);
+  const subtitle = displayGlosses[0];
+  const displaySense = { ...sense, glosses: displayGlosses };
+  const detailMd = buildWordFullDetailMarkdown(word, displaySense, sentences, lang);
+
+  useEffect(() => {
+    let cancelled = false;
+    const query = word.reading.kanji || word.reading.kana;
+    if (!query || sentences.length > 0 || sentencesLoading) return;
+    setSentencesLoading(true);
+    (async () => {
+      const raw = await fetchSentences(query, lang);
+      if (cancelled) return;
+      let result = raw;
+      if (lang !== "English" && result.length > 0) {
+        const pending = result
+          .map((s, i) => ({ s, i }))
+          .filter(({ s }) => {
+            if (s.translation && s.eng && s.translation === s.eng) return true;
+            if (s.translation && !/[^\x20-\x7E\s]/.test(s.translation)) return true;
+            return false;
+          });
+        if (pending.length > 0) {
+          const code = LANGUAGE_CODE_MAP[lang] || "en";
+          for (const p of pending) {
+            if (cancelled) return;
+            const t = await translateText(p.s.translation, "en", code);
+            if (t) result[p.i] = { ...result[p.i], translation: t };
+          }
+        }
+      }
+      if (!cancelled) {
+        setSentences(result);
+        setSentencesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (lang === "English" || sense.language !== "English" || sense.glosses.length === 0) return;
+    let cancelled = false;
+    translateText(
+      sense.glosses.join("; "),
+      "en",
+      LANGUAGE_CODE_MAP[lang] || "en",
+    ).then((t) => {
+      if (!cancelled && t) setTranslatedGlosses(t.split(/;\s*/));
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const ankiBack = (() => {
+    const parts: string[] = [];
+    if (displaySense.pos) parts.push(displaySense.pos);
+    parts.push(displaySense.glosses.join("; "));
+    if (sentences.length > 0) {
+      parts.push(
+        "",
+        "Example Sentences:",
+        ...sentences.map((s) => `${s.content} → ${s.translation}`),
+      );
+    }
+    return parts.join("\n\n");
+  })();
+
+  return (
+    <List.Item
+      title={title}
+      subtitle={subtitle}
+      icon={
+        word.common
+          ? { source: Icon.Dot, tintColor: Color.Green }
+          : undefined
+      }
+      detail={<List.Item.Detail markdown={detailMd} />}
+      actions={
+        <ActionPanel>
+          <Action
+            title={t("addToAnki", lang)}
+            icon={{ source: Icon.Plus, tintColor: Color.Green }}
+            shortcut={{ modifiers: ["cmd"], key: "a" }}
+            onAction={async () => {
+              const query = word.reading.kanji || word.reading.kana;
+              if (!query) return;
+              const isConnected = await checkAnkiConnect(
+                preferences.ankiPort,
+              );
+              if (!isConnected) {
+                await showToast({
+                  style: Toast.Style.Failure,
+                  title: t("ankiNotConnected", lang),
+                  message: t("ankiNotConnectedMsg", lang).replace("{port}", String(preferences.ankiPort)),
+                });
+                return;
+              }
+              try {
+                await addToAnki(
+                  preferences.ankiDeck,
+                  preferences.ankiModel,
+                  title,
+                  ankiBack,
+                  preferences.ankiPort,
+                );
+                await showToast({
+                  style: Toast.Style.Success,
+                  title: t("addedToAnki", lang),
+                  message: t("cardAddedMsg", lang).replace("{deck}", preferences.ankiDeck),
+                });
+              } catch (error) {
+                const msg = String(error).toLowerCase();
+                if (msg.includes("duplicate")) {
+                  await showToast({
+                    style: Toast.Style.Failure,
+                    title: t("alreadyInDeck", lang),
+                    message: t("alreadyInDeckMsg", lang).replace("{deck}", preferences.ankiDeck),
+                  });
+                } else {
+                  await showToast({
+                    style: Toast.Style.Failure,
+                    title: t("errorAdding", lang),
+                    message: String(error),
+                  });
+                }
+              }
+            }}
+          />
+          {preferences.geminiApiKey && (
+            <Action
+              title={t("explainWithAI", lang)}
+              icon={{ source: Icon.Wand, tintColor: Color.Purple }}
+              shortcut={{ modifiers: [], key: "tab" }}
+              onAction={() => onRequestAI(searchText)}
+            />
+          )}
+          <Action
+            title={t("playAudio", lang)}
+            icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
+            shortcut={{ modifiers: ["cmd"], key: "p" }}
+            onAction={async () => {
+              const text = word.reading.kana;
+              try {
+                await playElevenLabsAudio(
+                  text,
+                  preferences.elevenlabsApiKey,
+                  preferences.elevenlabsVoiceId,
+                );
+                await showToast({
+                  style: Toast.Style.Success,
+                  title: t("playingAudio", lang),
+                });
+              } catch (error) {
+                await showToast({
+                  style: Toast.Style.Failure,
+                  title: t("failPlayAudio", lang),
+                  message: String(error),
+                });
+              }
+            }}
+          />
+          <ActionPanel.Section title={t("copy", lang)}>
+            <Action
+              title={t("copyWord", lang)}
+              icon={Icon.Clipboard}
+              shortcut={{ modifiers: ["cmd"], key: "c" }}
+              onAction={async () => {
+                await Clipboard.copy(title);
+                await showToast({
+                  style: Toast.Style.Success,
+                  title: t("copied", lang),
+                });
+              }}
+            />
+            <Action
+              title={t("copyDefinition", lang)}
+              icon={Icon.Clipboard}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+              onAction={async () => {
+                await Clipboard.copy(sense.glosses.join("; "));
+                await showToast({
+                  style: Toast.Style.Success,
+                  title: t("copied", lang),
+                });
+              }}
+            />
+          </ActionPanel.Section>
+          <Action
+            title={t("openOnJotoba", lang)}
+            icon={Icon.Globe}
+            onAction={async () => {
+              const query = word.reading.kanji || word.reading.kana;
+              exec(`xdg-open "https://jotoba.de/search/${encodeURIComponent(query)}"`);
             }}
           />
         </ActionPanel>
@@ -1048,14 +1302,17 @@ export default function Command() {
       setIsLoading(true);
       setHasSearched(true);
       try {
-        const [words, kanji, translation, imageUrl] = await Promise.all([
+        const [words, kanji, translation] = await Promise.all([
           searchWords(debouncedText, userLang),
           searchKanji(debouncedText, userLang),
           translateViaGoogle(debouncedText, userLang),
-          preferences.showTranslationImage
-            ? searchTranslationImage(debouncedText, preferences.gcsApiKey, preferences.gcsCxId)
-            : Promise.resolve(null),
         ]);
+        const imageUrl =
+          preferences.showTranslationImage
+            ? await searchWikiImage(
+                imageSearchTerm(debouncedText, words[0]),
+              )
+            : null;
         setResults({ words, kanji, translation, imageUrl });
       } catch (error) {
         await showToast({
@@ -1072,8 +1329,28 @@ export default function Command() {
   }, [debouncedText, userLang]);
 
   const hasResults = results.words.length > 0 || results.kanji.length > 0;
-
   const showTranslation = !!results.translation;
+  const [aiQuery, setAiQuery] = useState<string | null>(null);
+  const aiLanguage = preferences.geminiAiLanguage || userLang;
+
+  const openAI = useCallback((query: string) => setAiQuery(query), []);
+  const closeAI = useCallback(() => setAiQuery(null), []);
+
+  if (aiQuery) {
+    return (
+      <AIExplainView
+        query={aiQuery}
+        geminiApiKey={preferences.geminiApiKey}
+        model={preferences.geminiModel}
+        customPrompt={preferences.geminiCustomPrompt}
+        aiLanguage={aiLanguage}
+        elevenlabsApiKey={preferences.elevenlabsApiKey}
+        aiVoiceId={preferences.elevenlabsAiVoiceId}
+        lang={userLang}
+        onBack={closeAI}
+      />
+    );
+  }
 
   return (
     <List
@@ -1105,7 +1382,7 @@ export default function Command() {
                 icon={{ source: Icon.Text, tintColor: Color.Yellow }}
                 detail={
                   <List.Item.Detail
-                    markdown={`${debouncedText}\n\n---\n\n> ${results.translation}${results.imageUrl ? `\n\n![Translation Image](${results.imageUrl})` : ""}`}
+                    markdown={`${debouncedText}\n\n---\n\n> ${results.translation}${results.imageUrl ? `\n\n![](${results.imageUrl})` : ""}`}
                   />
                 }
                 actions={
@@ -1153,9 +1430,17 @@ export default function Command() {
                             });
                           }
                         }
-                      }}
-                    />
-                    <Action
+            }}
+          />
+          {preferences.geminiApiKey && (
+            <Action
+              title={t("explainWithAI", userLang)}
+              icon={{ source: Icon.Wand, tintColor: Color.Purple }}
+              shortcut={{ modifiers: [], key: "tab" }}
+              onAction={() => openAI(debouncedText)}
+            />
+          )}
+          <Action
                       title={t("playAudio", userLang)}
                       icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
                       shortcut={{ modifiers: ["cmd"], key: "p" }}
@@ -1176,13 +1461,13 @@ export default function Command() {
                             title: t("failPlayAudio", userLang),
                             message: String(error),
                           });
-                        }
-                      }}
-                    />
-                  </ActionPanel>
                 }
-              />
-            </List.Section>
+              }}
+            />
+          </ActionPanel>
+        }
+      />
+    </List.Section>
           )}
 
           {results.words.length > 0 && (
@@ -1196,6 +1481,8 @@ export default function Command() {
                   word={word}
                   lang={userLang}
                   preferences={preferences}
+                  searchText={debouncedText}
+                  onRequestAI={openAI}
                 />
               ))}
             </List.Section>
@@ -1212,6 +1499,7 @@ export default function Command() {
                   kanji={kanji}
                   preferences={preferences}
                   lang={userLang}
+                  onRequestAI={openAI}
                 />
               ))}
             </List.Section>
