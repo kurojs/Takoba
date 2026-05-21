@@ -82,6 +82,14 @@
           "default": false
         },
         {
+          "name": "ankiIncludeImage",
+          "title": "Include Image in Anki Card",
+          "description": "When adding a translation to Anki, include the image in the card back",
+          "type": "checkbox",
+          "required": false,
+          "default": false
+        },
+        {
           "name": "autoLoadText",
           "title": "Auto-load selected text",
           "description": "Automatically load selected text from clipboard",

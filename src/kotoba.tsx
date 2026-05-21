@@ -138,6 +138,7 @@ interface Preferences {
   elevenlabsAiVoiceId: string;
   userLanguage: string;
   showTranslationImage: boolean;
+  ankiIncludeImage: boolean;
   autoLoadText: boolean;
   geminiApiKey: string;
   geminiModel: string;
@@ -1408,11 +1409,14 @@ export default function Command() {
                           return;
                         }
                         try {
+                          const backContent = results.imageUrl && preferences.ankiIncludeImage
+                            ? `${results.translation}\n\n<img src="${results.imageUrl}">`
+                            : `${results.translation}`;
                           await addToAnki(
                             preferences.ankiDeck,
                             preferences.ankiModel,
                             debouncedText,
-                            `${results.translation}`,
+                            backContent,
                             preferences.ankiPort,
                           );
                           await showToast({
