@@ -56,23 +56,28 @@ const UI: Record<string, Record<string, string>> = {
     openOnJotoba: "Open on Jotoba",
     viewStrokeOrder: "View Stroke Order",
     copied: "Copied!",
-    addedToAnki: "Added to Anki! ✅",
+    addedToAnki: "Added ✅",
     playingAudio: "Playing audio! 🔊",
     ankiNotConnected: "Anki not connected",
     ankiNotConnectedMsg: "Make sure Anki is running with AnkiConnect on port {port}",
-    cardAddedMsg: "Card added to {deck}",
+    cardAddedMsg: "→ {deck}",
     search: "Search Kotoba",
-    searchPlaceholder: "Search Japanese words, kanji, or phrases...",
+    searchPlaceholder: "Type a word, kanji, or ask AI...",
     noResults: "No results found",
     noResultsMsg: "No results for \"{query}\"",
-    typeToSearch: "Type a word, kanji, or phrase to search",
-    alreadyInDeck: "Ya está en el mazo",
-    alreadyInDeckMsg: "\"{deck}\" already has this card",
-    errorAdding: "Error adding to Anki",
+    typeToSearch: "Search Japanese words, kanji, or ask AI for explanations",
+    alreadyInDeck: "Duplicate",
+    alreadyInDeckMsg: "Duplicate in {deck}",
+    errorAdding: "Anki error",
     failPlayAudio: "Failed to play audio",
+    searchError: "Search failed",
     copyResponse: "Copy Response",
     explainWithAI: "Explain with AI",
     aiLoading: "Generating explanation",
+    furigana: "Furigana",
+    furiganaError: "Furigana can't be loaded",
+    aiExplainError: "AI explanation unavailable",
+    ttsError: "Audio unavailable",
   },
   Spanish: {
     translation: "Traducción",
@@ -97,23 +102,27 @@ const UI: Record<string, Record<string, string>> = {
     openOnJotoba: "Abrir en Jotoba",
     viewStrokeOrder: "Ver Orden de Trazos",
     copied: "¡Copiado!",
-    addedToAnki: "¡Agregado a Anki! ✅",
+    addedToAnki: "Agregada ✅",
     playingAudio: "¡Reproduciendo audio! 🔊",
     ankiNotConnected: "Anki no conectado",
     ankiNotConnectedMsg: "Asegurate que Anki esté corriendo con AnkiConnect en puerto {port}",
-    cardAddedMsg: "Tarjeta agregada a {deck}",
+    cardAddedMsg: "→ {deck}",
     search: "Buscar Kotoba",
-    searchPlaceholder: "Buscá palabras, kanji o frases en japonés...",
+    searchPlaceholder: "Buscá palabras, kanji o consultá a la IA...",
     noResults: "Sin resultados",
     noResultsMsg: "Sin resultados para \"{query}\"",
-    typeToSearch: "Escribí una palabra, kanji o frase para buscar",
-    alreadyInDeck: "Ya está en el mazo",
-    alreadyInDeckMsg: "\"{deck}\" ya tiene esta tarjeta",
-    errorAdding: "Error al agregar",
+    typeToSearch: "Buscá palabras, kanji o consultá a la IA",
+    alreadyInDeck: "Duplicado",
+    alreadyInDeckMsg: "Duplicado en {deck}",
+    errorAdding: "Error en Anki",
     failPlayAudio: "Error al reproducir audio",
     copyResponse: "Copiar Respuesta",
     explainWithAI: "Explicar con IA",
     aiLoading: "Generando explicación",
+    furigana: "Furigana",
+    furiganaError: "Furigana no disponible",
+    aiExplainError: "Explicación no disponible",
+    ttsError: "Audio no disponible",
   },
 };
 
@@ -122,24 +131,19 @@ function t(key: string, lang: Lang): string {
 }
 
 // ────────────────────────────────────────────
+// In-memory cache for API calls
+// ────────────────────────────────────────────
+
+const furiganaCache = new Map<string, string>();
+const aiExplainCache = new Map<string, { response: string; timestamp: number }>();
+const AI_EXPLAIN_CACHE_TTL = 3_600_000; // 1 hour
+
+// ────────────────────────────────────────────
 // Types
 // ────────────────────────────────────────────
 
 interface Preferences {
-  ankiDeck: string;
-  ankiModel: string;
   ankiPort: string;
-  elevenlabsApiKey: string;
-  elevenlabsVoiceId: string;
-  elevenlabsAiVoiceId: string;
-  userLanguage: string;
-  showTranslationImage: boolean;
-  ankiIncludeImage: boolean;
-  autoLoadText: boolean;
-  geminiApiKey: string;
-  geminiModel: string;
-  geminiCustomPrompt: string;
-  geminiAiLanguage: string;
 }
 
 interface JotobaReading {
@@ -192,7 +196,6 @@ interface SearchResults {
   words: JotobaWord[];
   kanji: JotobaKanji[];
   translation: string | null;
-  imageUrl: string | null;
 }
 
 // ────────────────────────────────────────────
@@ -294,29 +297,6 @@ async function translateText(
   }
 }
 
-async function searchWikiImage(query: string): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url&format=json&origin=*`,
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as any;
-    const pages = data?.query?.pages;
-    if (!pages) return null;
-    const pageId = Object.keys(pages)[0];
-    return pages[pageId]?.imageinfo?.[0]?.url || null;
-  } catch {
-    return null;
-  }
-}
-
-function imageSearchTerm(debouncedText: string, firstWord: JotobaWord | undefined): string {
-  if (firstWord && /[\u4e00-\u9fff\u3400-\u4dbf]/.test(debouncedText)) {
-    return firstWord.senses[0]?.glosses[0] || debouncedText;
-  }
-  return debouncedText;
-}
-
 // ────────────────────────────────────────────
 // Anki helpers
 // ────────────────────────────────────────────
@@ -332,44 +312,6 @@ async function checkAnkiConnect(port: string = "8765"): Promise<boolean> {
     return data.result !== null && data.result >= 6;
   } catch {
     return false;
-  }
-}
-
-async function checkModelExists(
-  modelName: string,
-  port: string = "8765",
-): Promise<boolean> {
-  try {
-    const res = await fetch(`http://localhost:${port}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "modelNames", version: 6 }),
-    });
-    const data = (await res.json()) as any;
-    return (data.result || []).includes(modelName);
-  } catch {
-    return false;
-  }
-}
-
-async function getModelFields(
-  modelName: string,
-  port: string = "8765",
-): Promise<string[]> {
-  try {
-    const res = await fetch(`http://localhost:${port}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "modelFieldNames",
-        version: 6,
-        params: { modelName },
-      }),
-    });
-    const data = (await res.json()) as any;
-    return data.result || [];
-  } catch {
-    return [];
   }
 }
 
@@ -402,60 +344,29 @@ async function ensureDeckExists(
   }
 }
 
+type Section = "word" | "kanji" | "translation";
+
+const SECTION_DECKS: Record<Section, string> = {
+  word: "Kotoba Words",
+  kanji: "Kotoba Kanji",
+  translation: "Kotoba Translation",
+};
+
 async function addToAnki(
-  deckName: string,
-  modelName: string,
+  section: Section,
   front: string,
   back: string,
   port: string = "8765",
 ): Promise<void> {
+  const deckName = SECTION_DECKS[section];
   await ensureDeckExists(deckName, port);
 
-  const modelExists = await checkModelExists(modelName, port);
-  if (!modelExists) {
-    throw new Error(
-      `Model "${modelName}" does not exist in Anki. Please check your preferences.`,
-    );
-  }
+  const modelName = "Basic";
 
-  const fields = await getModelFields(modelName, port);
-
-  if (fields.length < 2) {
-    throw new Error(`Model "${modelName}" needs at least 2 fields`);
-  }
-
-  const noteFields: Record<string, string> = {};
-
-  if (fields.includes("Front")) noteFields["Front"] = front;
-  else if (fields.includes("Expression")) noteFields["Expression"] = front;
-  else if (fields.includes("Word")) noteFields["Word"] = front;
-  else noteFields[fields[0]] = front;
-
-  const frontFieldName = Object.keys(noteFields)[0];
-
-  if (fields.includes("Back")) noteFields["Back"] = back;
-  else if (fields.includes("Meaning")) noteFields["Meaning"] = back;
-  else if (fields.includes("Translation")) noteFields["Translation"] = back;
-  else noteFields[fields[1]] = back;
-
-  // Pre-check: findNotes to detect duplicates per deck
-  const frontValue = noteFields[frontFieldName];
-  const findRes = await fetch(`http://localhost:${port}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "findNotes",
-      version: 6,
-      params: {
-        query: `deck:"${deckName}" "${frontValue.replace(/"/g, '\\"')}"`,
-      },
-    }),
-  });
-  const findData = (await findRes.json()) as any;
-  if (findData.error) throw new Error(findData.error);
-  if (findData.result && findData.result.length > 0) {
-    throw new Error("DUPLICATE");
-  }
+  const noteFields: Record<string, string> = {
+    Front: front,
+    Back: back,
+  };
 
   const res = await fetch(`http://localhost:${port}`, {
     method: "POST",
@@ -760,6 +671,70 @@ async function queryGemini(
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || "⚠️ No response from AI";
 }
 
+async function furiganizeText(text: string, apiKey: string, model: string): Promise<string> {
+  const prompt = `Add furigana readings in parentheses after each kanji in this Japanese text. Return ONLY the annotated text, no explanation, no extra formatting: ${text}`;
+  const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Gemini API error (${res.status}): ${errBody}`);
+  }
+
+  const data = (await res.json()) as any;
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || text;
+}
+
+function formatAnkiBack(
+  _format: string,
+  options: {
+    wordTitle: string;
+    reading: string;
+    definitions: string;
+    pitch?: string;
+    sentences: { content: string; translation: string }[];
+    pos?: string;
+    lang: Lang;
+    kanjiMeanings?: string;
+    kanjiOnyomi?: string;
+    kanjiKunyomi?: string;
+    kanjiMeta?: string;
+    kanjiImage?: string;
+  },
+): string {
+  // "kotoba" — matches UI detail view
+  const html: string[] = [];
+
+  if (options.kanjiMeanings) {
+    html.push(options.kanjiMeanings);
+    if (options.kanjiOnyomi || options.kanjiKunyomi) {
+      const readings: string[] = [];
+      if (options.kanjiOnyomi) readings.push(`<b>On:</b> ${options.kanjiOnyomi}`);
+      if (options.kanjiKunyomi) readings.push(`<b>Kun:</b> ${options.kanjiKunyomi}`);
+      html.push(readings.join(" | "));
+    }
+    if (options.kanjiMeta) html.push(options.kanjiMeta);
+    if (options.kanjiImage) html.push(`<img src="${options.kanjiImage}">`);
+  } else {
+    if (options.reading) html.push(`<b>${options.reading}</b>`);
+    html.push(options.definitions);
+    if (options.pos) html[html.length - 1] += ` | ${options.pos}`;
+    if (options.pitch) html.push(options.pitch);
+    if (options.sentences.length > 0) {
+      html.push(`<br><b>--- ${t("exampleSentences", options.lang)} ---</b><br>`);
+      for (const s of options.sentences) {
+        html.push(`${s.content}<br>${s.translation}`);
+      }
+    }
+  }
+  return html.join("<br><br>");
+}
+
 function AIExplainView({
   query,
   geminiApiKey,
@@ -787,9 +762,19 @@ function AIExplainView({
 
   useEffect(() => {
     let cancelled = false;
+    const cacheKey = `${query}|${model}|${customPrompt}|${aiLanguage}`;
+    const cached = aiExplainCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < AI_EXPLAIN_CACHE_TTL) {
+      setResponse(cached.response);
+      setIsLoading(false);
+      return;
+    }
     queryGemini(query, geminiApiKey, model, customPrompt, aiLanguage)
       .then((text) => {
-        if (!cancelled) setResponse(text);
+        if (!cancelled) {
+          aiExplainCache.set(cacheKey, { response: text, timestamp: Date.now() });
+          setResponse(text);
+        }
       })
       .catch((e) => {
         if (!cancelled) setError(String(e));
@@ -816,7 +801,7 @@ function AIExplainView({
   if (error) {
     return (
       <Detail
-        markdown={`# ❌ ${t("errorAdding", lang)}\n\n\`\`\`\n${error}\n\`\`\``}
+        markdown={`<br><br><br><br><br><br><center>_${t("aiExplainError", lang)}_</center>`}
         actions={
           <ActionPanel>
             <Action title="Back" icon={Icon.ArrowLeft} onAction={onBack} />
@@ -851,8 +836,7 @@ function AIExplainView({
                 } catch (e) {
                   await showToast({
                     style: Toast.Style.Failure,
-                    title: t("failPlayAudio", lang),
-                    message: String(e),
+                    title: t("ttsError", lang),
                   });
                 }
             }}
@@ -901,14 +885,22 @@ function KanjiListItem({
     return () => { cancelled = true; };
   }, []);
 
-  const ankiBack = [
-    kanji.meanings.join(", "),
-    "",
-    ...(kanji.onyomi?.length ? [`${t("onyomi", lang)}: ${kanji.onyomi.join("・")}`] : []),
-    ...(kanji.kunyomi?.length ? [`${t("kunyomi", lang)}: ${kanji.kunyomi.join("・")}`] : []),
-    "",
-    `JLPT N${kanji.jlpt} · ${t("grade", lang)} ${kanji.grade} · ${kanji.stroke_count} ${t("strokes", lang)}`,
-  ].join("\n");
+  const kanjiTranslatedMeanings = translatedMeaning || kanji.meanings.join(", ");
+  const kanjiStrokeImage = `https://jotoba.de/resource/kanji/frames/${encodeURIComponent(kanji.literal)}`;
+
+  const ankiBack = formatAnkiBack("kotoba", {
+    wordTitle: kanji.literal,
+    reading: "",
+    definitions: kanjiTranslatedMeanings,
+    pitch: undefined,
+    sentences: [],
+    lang,
+    kanjiMeanings: kanjiTranslatedMeanings,
+    kanjiOnyomi: kanji.onyomi?.join("・"),
+    kanjiKunyomi: kanji.kunyomi?.join("・"),
+    kanjiMeta: `JLPT N${kanji.jlpt} · ${t("grade", lang)} ${kanji.grade} · ${kanji.stroke_count} ${t("strokes", lang)}${kanji.frequency ? ` · ${t("freq", lang)}: #${kanji.frequency}` : ""}${kanji.radical ? ` · ${t("radical", lang)}: ${kanji.radical}` : ""}`,
+    kanjiImage: kanjiStrokeImage,
+  });
 
   return (
     <List.Item
@@ -937,18 +929,18 @@ function KanjiListItem({
                 });
                 return;
               }
+              const kanjiDeck = "Kotoba Kanji";
               try {
                 await addToAnki(
-                  preferences.ankiDeck,
-                  preferences.ankiModel,
-                  `「${kanji.literal}」 - ${kanji.meanings[0] || ""}`,
+                  "kanji",
+                  kanji.literal,
                   ankiBack,
                   preferences.ankiPort,
                 );
                 await showToast({
                   style: Toast.Style.Success,
                   title: t("addedToAnki", lang),
-                  message: t("cardAddedMsg", lang).replace("{deck}", preferences.ankiDeck),
+                  message: t("cardAddedMsg", lang).replace("{deck}", kanjiDeck),
                 });
               } catch (error) {
                 const msg = String(error).toLowerCase();
@@ -956,13 +948,12 @@ function KanjiListItem({
                   await showToast({
                     style: Toast.Style.Failure,
                     title: t("alreadyInDeck", lang),
-                    message: t("alreadyInDeckMsg", lang).replace("{deck}", preferences.ankiDeck),
+                    message: t("alreadyInDeckMsg", lang).replace("{deck}", kanjiDeck),
                   });
                 } else {
                   await showToast({
                     style: Toast.Style.Failure,
                     title: t("errorAdding", lang),
-                    message: String(error),
                   });
                 }
               }
@@ -972,7 +963,7 @@ function KanjiListItem({
             <Action
               title={t("explainWithAI", lang)}
               icon={{ source: Icon.Wand, tintColor: Color.Purple }}
-              shortcut={{ modifiers: [], key: "tab" }}
+              shortcut={{ modifiers: ["cmd"], key: "e" }}
               onAction={() => onRequestAI(kanji.literal)}
             />
           )}
@@ -1094,19 +1085,28 @@ function WordListItem({
     return () => { cancelled = true; };
   }, []);
 
-  const ankiBack = (() => {
-    const parts: string[] = [];
-    if (displaySense.pos) parts.push(displaySense.pos);
-    parts.push(displaySense.glosses.join("; "));
-    if (sentences.length > 0) {
-      parts.push(
-        "",
-        "Example Sentences:",
-        ...sentences.map((s) => `${s.content} → ${s.translation}`),
-      );
-    }
-    return parts.join("\n\n");
-  })();
+  const pitchStr = word.pitch && word.pitch.length > 0
+    ? (() => {
+        const pitchParts: string[] = [];
+        let hasRisen = false;
+        for (const p of word.pitch) {
+          if (p.high && !hasRisen) { pitchParts.push(`↑${p.part}`); hasRisen = true; }
+          else if (!p.high && hasRisen) { pitchParts.push(`↘${p.part}`); hasRisen = false; }
+          else { pitchParts.push(p.part); }
+        }
+        return `${t("pitch", lang)}: ${pitchParts.join("")}`;
+      })()
+    : undefined;
+
+  const ankiBack = formatAnkiBack("kotoba", {
+    wordTitle: title,
+    reading: word.reading.kana,
+    definitions: displaySense.glosses.join("; "),
+    pitch: pitchStr,
+    sentences,
+    pos: displaySense.pos,
+    lang,
+  });
 
   return (
     <List.Item
@@ -1138,18 +1138,18 @@ function WordListItem({
                 });
                 return;
               }
+              const wordDeck = "Kotoba Words";
               try {
-                await addToAnki(
-                  preferences.ankiDeck,
-                  preferences.ankiModel,
-                  title,
+                  await addToAnki(
+                    "word",
+                    word.reading.kanji || word.reading.kana,
                   ankiBack,
                   preferences.ankiPort,
                 );
                 await showToast({
                   style: Toast.Style.Success,
                   title: t("addedToAnki", lang),
-                  message: t("cardAddedMsg", lang).replace("{deck}", preferences.ankiDeck),
+                  message: t("cardAddedMsg", lang).replace("{deck}", wordDeck),
                 });
               } catch (error) {
                 const msg = String(error).toLowerCase();
@@ -1157,13 +1157,12 @@ function WordListItem({
                   await showToast({
                     style: Toast.Style.Failure,
                     title: t("alreadyInDeck", lang),
-                    message: t("alreadyInDeckMsg", lang).replace("{deck}", preferences.ankiDeck),
+                    message: t("alreadyInDeckMsg", lang).replace("{deck}", wordDeck),
                   });
                 } else {
                   await showToast({
                     style: Toast.Style.Failure,
                     title: t("errorAdding", lang),
-                    message: String(error),
                   });
                 }
               }
@@ -1173,7 +1172,7 @@ function WordListItem({
             <Action
               title={t("explainWithAI", lang)}
               icon={{ source: Icon.Wand, tintColor: Color.Purple }}
-              shortcut={{ modifiers: [], key: "tab" }}
+              shortcut={{ modifiers: ["cmd"], key: "e" }}
               onAction={() => onRequestAI(searchText)}
             />
           )}
@@ -1197,8 +1196,7 @@ function WordListItem({
               } catch (error) {
                 await showToast({
                   style: Toast.Style.Failure,
-                  title: t("failPlayAudio", lang),
-                  message: String(error),
+                  title: t("ttsError", lang),
                 });
               }
             }}
@@ -1259,12 +1257,12 @@ export default function Command() {
     words: [],
     kanji: [],
     translation: null,
-    imageUrl: null,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
+    if (!preferences.autoLoadText) return;
     const loadInitialText = async () => {
       try {
         const selectedText = await getSelectedText();
@@ -1275,7 +1273,7 @@ export default function Command() {
       } catch {}
       try {
         const clipboardText = await Clipboard.readText();
-        if (clipboardText && preferences.autoLoadText) {
+        if (clipboardText) {
           setSearchText(clipboardText);
         }
       } catch {}
@@ -1292,7 +1290,7 @@ export default function Command() {
 
   useEffect(() => {
     if (!debouncedText) {
-      setResults({ words: [], kanji: [], translation: null, imageUrl: null });
+        setResults({ words: [], kanji: [], translation: null });
       setHasSearched(false);
       return;
     }
@@ -1306,18 +1304,11 @@ export default function Command() {
           searchKanji(debouncedText, userLang),
           translateViaGoogle(debouncedText, userLang),
         ]);
-        const imageUrl =
-          preferences.showTranslationImage
-            ? await searchWikiImage(
-                imageSearchTerm(debouncedText, words[0]),
-              )
-            : null;
-        setResults({ words, kanji, translation, imageUrl });
+        setResults({ words, kanji, translation });
       } catch (error) {
         await showToast({
           style: Toast.Style.Failure,
-          title: "Search failed",
-          message: String(error),
+          title: t("searchError", lang),
         });
       } finally {
         setIsLoading(false);
@@ -1331,6 +1322,37 @@ export default function Command() {
   const showTranslation = !!results.translation;
   const [aiQuery, setAiQuery] = useState<string | null>(null);
   const aiLanguage = preferences.geminiAiLanguage || userLang;
+
+  const [furiganaText, setFuriganaText] = useState("");
+
+  useEffect(() => {
+    if (!preferences.showFurigana || !debouncedText || !preferences.geminiApiKey) {
+      setFuriganaText("");
+      return;
+    }
+    if (furiganaCache.has(debouncedText)) {
+      setFuriganaText(furiganaCache.get(debouncedText)!);
+      return;
+    }
+    let cancelled = false;
+    furiganizeText(debouncedText, preferences.geminiApiKey, preferences.geminiModel)
+      .then(t => {
+        if (!cancelled) {
+          furiganaCache.set(debouncedText, t);
+          setFuriganaText(t);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFuriganaText("");
+          showToast({
+            style: Toast.Style.Failure,
+            title: t("furiganaError", userLang),
+          }).catch(() => {});
+        }
+      });
+    return () => { cancelled = true; };
+  }, [preferences.showFurigana, debouncedText, preferences.geminiApiKey, preferences.geminiModel]);
 
   const openAI = useCallback((query: string) => setAiQuery(query), []);
   const closeAI = useCallback(() => setAiQuery(null), []);
@@ -1381,7 +1403,7 @@ export default function Command() {
                 icon={{ source: Icon.Text, tintColor: Color.Yellow }}
                 detail={
                   <List.Item.Detail
-                    markdown={`${debouncedText}\n\n---\n\n> ${results.translation}${results.imageUrl ? `\n\n![](${results.imageUrl})` : ""}`}
+                    markdown={`${furiganaText || debouncedText}\n\n---\n\n> ${results.translation}`}
                   />
                 }
                 actions={
@@ -1401,13 +1423,15 @@ export default function Command() {
                           });
                           return;
                         }
+                        const transDeck = "Kotoba Translation";
                         try {
-                          const backContent = results.imageUrl && preferences.ankiIncludeImage
-                            ? `${results.translation}\n\n<img src="${results.imageUrl}">`
-                            : `${results.translation}`;
+                          const hasFurigana = preferences.showFurigana && !!furiganaText;
+                          const furiganaSuffix = hasFurigana
+                            ? `\n\n> ${furiganaText}`
+                            : "";
+                          const backContent = `${results.translation}${furiganaSuffix}`;
                           await addToAnki(
-                            preferences.ankiDeck,
-                            preferences.ankiModel,
+                            "translation",
                             debouncedText,
                             backContent,
                             preferences.ankiPort,
@@ -1415,6 +1439,7 @@ export default function Command() {
                           await showToast({
                             style: Toast.Style.Success,
                             title: t("addedToAnki", userLang),
+                            message: t("cardAddedMsg", userLang).replace("{deck}", transDeck),
                           });
                         } catch (error) {
                           const msg = String(error).toLowerCase();
@@ -1422,13 +1447,12 @@ export default function Command() {
                             await showToast({
                               style: Toast.Style.Failure,
                               title: t("alreadyInDeck", userLang),
-                              message: t("alreadyInDeckMsg", userLang).replace("{deck}", preferences.ankiDeck),
+                              message: t("alreadyInDeckMsg", userLang).replace("{deck}", transDeck),
                             });
                           } else {
                             await showToast({
                               style: Toast.Style.Failure,
                               title: t("errorAdding", userLang),
-                              message: String(error),
                             });
                           }
                         }
@@ -1438,7 +1462,7 @@ export default function Command() {
             <Action
               title={t("explainWithAI", userLang)}
               icon={{ source: Icon.Wand, tintColor: Color.Purple }}
-              shortcut={{ modifiers: [], key: "tab" }}
+              shortcut={{ modifiers: ["cmd"], key: "e" }}
               onAction={() => openAI(debouncedText)}
             />
           )}
@@ -1449,7 +1473,7 @@ export default function Command() {
                       onAction={async () => {
                         try {
                           await playElevenLabsAudio(
-                            results.words[0]?.reading?.kana || debouncedText,
+                            debouncedText,
                             preferences.elevenlabsApiKey,
                             preferences.elevenlabsVoiceId,
                             "ja",
@@ -1461,8 +1485,7 @@ export default function Command() {
                         } catch (error) {
                           await showToast({
                             style: Toast.Style.Failure,
-                            title: t("failPlayAudio", userLang),
-                            message: String(error),
+                            title: t("ttsError", userLang),
                           });
                 }
               }}

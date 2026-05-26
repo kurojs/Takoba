@@ -13,9 +13,9 @@
 |---------|-------------|
 | **🔍 Word Search** | Look up any Japanese word — get definitions, readings, pitch accent, part-of-speech, and example sentences |
 | **🗾 Kanji Analysis** | Stroke order diagrams, JLPT level, grade, frequency, radical decomposition, and on'yomi/kun'yomi readings |
-| **Translation** | Google Translate integration for instant Japanese → your language translations, with relevant images from Wikimedia Commons |
+| **Translation** | Google Translate integration for instant Japanese → your language translations |
 | **👾 AI Explanations** | Gemini-powered explanations for words, kanji, and phrases — customize the language and model |
-| **📦 Anki Export** | One-click card creation (`⌘A`) with per-deck duplicate detection. Smart field mapping works with any note type |
+| **📦 Anki Export** | One-click card creation (`⌘A`) with per-deck duplicate detection. Uses Anki's built-in Basic model |
 | **Text-to-Speech** | ElevenLabs multilingual TTS — hear Japanese pronunciation with a single keystroke (`⌘P`) |
 | **Clipboard** | Auto-loads selected text on launch; copy word, reading, or definition with keyboard shortcuts |
 
@@ -39,7 +39,7 @@
       <td><img src="https://i.imgur.com/FpsZV0h.png" width="400" alt="AI Explanation"/></td>
     </tr>
     <tr>
-      <td align="center"><em>Instant translation with contextual image from Wikimedia Commons</em></td>
+      <td align="center"><em>Instant translation with contextual furigana support</em></td>
       <td align="center"><em>Gemini AI explains words and kanji in your language</em></td>
     </tr>
   </table>
@@ -127,10 +127,7 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
 
 | Setting | Default | What it does |
 |---------|---------|-------------|
-| **Anki Deck Name** | `CUSTOM TRANSLATE` | Target deck for card creation |
-| **Anki Note Type** | `Basic-d5482` | Note model — dynamically maps Front/Back fields |
 | **AnkiConnect Port** | `8765` | Local port for AnkiConnect API |
-| **Include Image in Anki Card** | `false` | Appends the translation image to the card back |
 
 ### Text-to-Speech
 
@@ -138,12 +135,6 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
 |---------|---------|-------------|
 | **ElevenLabs API Key** | — | Your API key for TTS. Get one at elevenlabs.io |
 | **ElevenLabs Voice ID** | `21m00Tcm4TlvDq8ikWAM` | Voice for word pronunciation (default: Rachel). Use a Japanese voice for best results |
-
-### Translation Images
-
-| Setting | Default | What it does |
-|---------|---------|-------------|
-| **Show Translation Image** | `false` | Shows a relevant image from Wikimedia Commons below translations |
 
 ### AI Explanations
 
@@ -154,6 +145,7 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
 | **AI Response Language** | `Spanish` | Language for AI explanations. 21 languages supported |
 | **Custom AI Prompt** | — | Extra instructions for the AI (personality, format, focus areas) |
 | **AI Voice ID** | `21m00Tcm4TlvDq8ikWAM` | ElevenLabs voice for reading AI responses aloud |
+| **Show Furigana** | `false` | Adds furigana readings via Gemini — consumes AI tokens on each search |
 
 ---
 
@@ -180,9 +172,9 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
 
 ### Tips
 
-- **Translation images**: Enable "Show Translation Image" in settings. The extension uses Jotoba's English gloss to find relevant Commons images — searching for "fruit" for 実 instead of random kanji matches.
 - **AI language**: Set the "AI Response Language" independently from "Definition Language" — get definitions in Spanish and AI explanations in English, or vice versa.
-- **Anki with images**: Enable "Include Image in Anki Card" to embed translation images in your Anki cards automatically.
+- **Furigana**: Enable "Show Furigana" in settings. Each search calls Gemini to annotate kanji — consumes tokens.
+- **TTS voice**: Use a native Japanese ElevenLabs voice for best pronunciation results.
 
 ---
 
@@ -200,8 +192,8 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
                     │  │     ▼       ▼          ▼       │   │
                     │  │   ┌─────────────────────────┐  │   │
                     │  │   │       API Layer          │  │   │
-                    │  │   │ Jotoba · Google · Gemini │  │   │
-                    │  │   │ ElevenLabs · Wikimedia   │  │   │
+                     │  │   │ Jotoba · Google · Gemini │  │   │
+                     │  │   │   ElevenLabs             │  │   │
                     │  │   └─────────────────────────┘  │   │
                     └─────────────────────────────────────┘
 ```
@@ -211,17 +203,17 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
 1. **Search** → 500ms debounce → parallel Jotoba lookups (words + kanji) + Google Translate
 2. **Display** → Results in sections (Translation, Words, Kanji) with inline markdown
 3. **Detail** → Lazy sentence fetching from Jotoba/Tatoeba corpus
-4. **Images** → Jotoba English gloss → Wikimedia Commons search → relevant image
-5. **Anki** → Dynamic field mapping via AnkiConnect schema → per-deck dedup → card created
-6. **Audio** → ElevenLabs multilingual TTS → temp MP3 → system player (ffplay/mpv)
+4. **Anki** → 3 auto-created decks (Kotoba Words/Kanji/Translation) with per-deck dedup → card created using Basic model
+5. **Audio** → ElevenLabs multilingual TTS → temp MP3 → system player (ffplay/mpv)
+6. **AI** → Gemini-powered explanations for any word, kanji, or phrase
 
 ### Key Technical Decisions
 
 - **Single-file architecture**: ~1500 lines of TSX in one file. Separation through function boundaries.
 - **No build-time framework**: Uses Vicinae's `vici` bundler. Just TypeScript + fetch.
-- **Zero-cost image search**: Wikimedia Commons API + Jotoba English gloss. No API key needed.
-- **Dynamic Anki mapping**: Queries AnkiConnect for field schema instead of hardcoding field names.
+- **Section-based decks**: 3 flat decks (Kotoba Words/Kanji/Translation) — no user configuration needed
 - **Lazy loading**: Example sentences fetched on-demand when selecting a word.
+- **In-memory API caching**: Furigana and AI explanation results cached for 1 hour per session.
 
 ---
 
@@ -235,15 +227,6 @@ curl -X POST http://localhost:8765 \
   -H "Content-Type: application/json" \
   -d '{"action": "version", "version": 6}'
 ```
-
-### Anki: "Model does not exist"
-List available note types:
-```bash
-curl -X POST http://localhost:8765 \
-  -H "Content-Type: application/json" \
-  -d '{"action": "modelNames", "version": 6}'
-```
-Update the preference with an existing model name.
 
 ### Audio not working
 ```bash
@@ -300,6 +283,5 @@ MIT — see [LICENSE](./LICENSE).
 - [Vicinae](https://github.com/vicinaehq/vicinae) — Linux launcher platform
 - [AnkiConnect](https://foosoft.net/projects/anki-connect/) — Anki automation API
 - [ElevenLabs](https://elevenlabs.io) — AI text-to-speech
-- [Wikimedia Commons](https://commons.wikimedia.org) — Free image repository
 - [Google Gemini](https://deepmind.google/technologies/gemini/) — AI explanation engine
 - [KanjiVG](https://kanjivg.tagaini.net) — Kanji vector graphics reference

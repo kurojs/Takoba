@@ -16,22 +16,6 @@
       "mode": "view",
       "preferences": [
         {
-          "name": "ankiDeck",
-          "title": "Anki Deck Name",
-          "description": "The name of your Anki deck for Japanese vocabulary",
-          "type": "textfield",
-          "required": true,
-          "default": "CUSTOM TRANSLATE"
-        },
-        {
-          "name": "ankiModel",
-          "title": "Anki Note Type/Model",
-          "description": "The note type to use (e.g., Basic-d5482, MIA Japanese)",
-          "type": "textfield",
-          "required": false,
-          "default": "Basic-d5482"
-        },
-        {
           "name": "ankiPort",
           "title": "AnkiConnect Port",
           "description": "Port where AnkiConnect is running",
@@ -73,22 +57,6 @@
             { "title": "Hungarian", "value": "Hungarian" },
             { "title": "Slovenian", "value": "Slovenian" }
           ]
-        },
-        {
-          "name": "showTranslationImage",
-          "title": "Show Translation Image",
-          "description": "Show a relevant image from Wikimedia Commons below the translation",
-          "type": "checkbox",
-          "required": false,
-          "default": false
-        },
-        {
-          "name": "ankiIncludeImage",
-          "title": "Include Image in Anki Card",
-          "description": "When adding a translation to Anki, include the image in the card back",
-          "type": "checkbox",
-          "required": false,
-          "default": false
         },
         {
           "name": "autoLoadText",
@@ -176,6 +144,14 @@
           "type": "textfield",
           "required": false,
           "default": "21m00Tcm4TlvDq8ikWAM"
+        },
+        {
+          "name": "showFurigana",
+          "title": "Show Furigana",
+          "description": "Add furigana readings via Gemini — consumes AI tokens on each search",
+          "type": "checkbox",
+          "required": false,
+          "default": false
         }
       ]
     }
