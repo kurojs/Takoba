@@ -141,7 +141,7 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
 | Setting | Default | What it does |
 |---------|---------|-------------|
 | **Gemini API Key** | — | API key from Google AI Studio. Required for AI features |
-| **AI Model** | `gemini-2.5-flash` | Gemini model. 14 models available including Pro and Flash variants |
+| **AI Model** | `gemini-2.5-flash` | Gemini model. 15 models available including Pro and Flash variants |
 | **AI Response Language** | `Spanish` | Language for AI explanations. 21 languages supported |
 | **Custom AI Prompt** | — | Extra instructions for the AI (personality, format, focus areas) |
 | **AI Voice ID** | `21m00Tcm4TlvDq8ikWAM` | ElevenLabs voice for reading AI responses aloud |
