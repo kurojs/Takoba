@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Action,
   ActionPanel,
@@ -1329,6 +1329,7 @@ export default function Command() {
 
   const [searchText, setSearchText] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
+  const searchToken = useRef(0);
   const [results, setResults] = useState<SearchResults>({
     words: [],
     kanji: [],
@@ -1372,6 +1373,7 @@ export default function Command() {
     }
 
     const doSearch = async () => {
+      const token = ++searchToken.current;
       setIsLoading(true);
       setHasSearched(true);
       try {
@@ -1425,7 +1427,9 @@ export default function Command() {
           Promise.all(kanjiMeaningPromises),
         ]);
 
-        setResults({ words, kanji, translation, wordSentences, wordGlosses, kanjiMeanings });
+        if (token === searchToken.current) {
+          setResults({ words, kanji, translation, wordSentences, wordGlosses, kanjiMeanings });
+        }
       } catch (error) {
         await showToast({
           style: Toast.Style.Failure,

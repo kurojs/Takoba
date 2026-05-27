@@ -9,7 +9,7 @@
   "commands": [
     {
   "name": "kotoba",
-      "version": "2026.05.27",
+      "version": "1.0.0",
       "title": "Kotoba",
       "subtitle": "Japanese Dictionary & Translator",
       "description": "Search Jotoba for words, kanji, and sentences; add to Anki; TTS with ElevenLabs",
