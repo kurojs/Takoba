@@ -5,10 +5,13 @@
   "icon": "icon.png",
   "author": "kuro",
   "license": "MIT",
-  "categories": ["Productivity", "Education"],
+  "categories": [
+    "Productivity",
+    "Education"
+  ],
   "commands": [
     {
-  "name": "kotoba",
+      "name": "kotoba",
       "version": "1.0.0",
       "title": "Kotoba",
       "subtitle": "Japanese Dictionary & Translator",
@@ -47,15 +50,42 @@
           "required": false,
           "default": "English",
           "data": [
-            { "title": "English", "value": "English" },
-            { "title": "Spanish", "value": "Spanish" },
-            { "title": "German", "value": "German" },
-            { "title": "French", "value": "French" },
-            { "title": "Russian", "value": "Russian" },
-            { "title": "Swedish", "value": "Swedish" },
-            { "title": "Dutch", "value": "Dutch" },
-            { "title": "Hungarian", "value": "Hungarian" },
-            { "title": "Slovenian", "value": "Slovenian" }
+            {
+              "title": "English",
+              "value": "English"
+            },
+            {
+              "title": "Spanish",
+              "value": "Spanish"
+            },
+            {
+              "title": "German",
+              "value": "German"
+            },
+            {
+              "title": "French",
+              "value": "French"
+            },
+            {
+              "title": "Russian",
+              "value": "Russian"
+            },
+            {
+              "title": "Swedish",
+              "value": "Swedish"
+            },
+            {
+              "title": "Dutch",
+              "value": "Dutch"
+            },
+            {
+              "title": "Hungarian",
+              "value": "Hungarian"
+            },
+            {
+              "title": "Slovenian",
+              "value": "Slovenian"
+            }
           ]
         },
         {
@@ -82,21 +112,66 @@
           "required": false,
           "default": "gemini-2.5-flash",
           "data": [
-            { "title": "Gemini 2.5 Flash", "value": "gemini-2.5-flash" },
-            { "title": "Gemini 2.5 Pro", "value": "gemini-2.5-pro" },
-            { "title": "Gemini 2.5 Flash-Lite", "value": "gemini-2.5-flash-lite" },
-            { "title": "Gemini 2.5 Flash-Lite Preview (Sep 2025)", "value": "gemini-2.5-flash-lite-preview-09-2025" },
-            { "title": "Gemini 3.1 Pro Preview", "value": "gemini-3.1-pro-preview" },
-            { "title": "Gemini 3.1 Flash-Lite", "value": "gemini-3.1-flash-lite" },
-            { "title": "Gemini 3.5 Flash", "value": "gemini-3.5-flash" },
-            { "title": "Gemini 3.1 Pro Custom Tools", "value": "gemini-3.1-pro-preview-customtools" },
-            { "title": "Gemini 3 Pro Preview", "value": "gemini-3-pro-preview" },
-            { "title": "Gemini 3 Flash Preview", "value": "gemini-3-flash-preview" },
-            { "title": "Gemma 3 27B", "value": "gemma-3-27b-it" },
-            { "title": "Gemma 3 12B", "value": "gemma-3-12b-it" },
-            { "title": "Gemma 3 4B", "value": "gemma-3-4b-it" },
-            { "title": "Gemma 3 1B", "value": "gemma-3-1b-it" },
-            { "title": "Deep Research Pro Preview", "value": "deep-research-pro-preview-12-2025" }
+            {
+              "title": "Gemini 2.5 Flash",
+              "value": "gemini-2.5-flash"
+            },
+            {
+              "title": "Gemini 2.5 Pro",
+              "value": "gemini-2.5-pro"
+            },
+            {
+              "title": "Gemini 2.5 Flash-Lite",
+              "value": "gemini-2.5-flash-lite"
+            },
+            {
+              "title": "Gemini 2.5 Flash-Lite Preview (Sep 2025)",
+              "value": "gemini-2.5-flash-lite-preview-09-2025"
+            },
+            {
+              "title": "Gemini 3.1 Pro Preview",
+              "value": "gemini-3.1-pro-preview"
+            },
+            {
+              "title": "Gemini 3.1 Flash-Lite",
+              "value": "gemini-3.1-flash-lite"
+            },
+            {
+              "title": "Gemini 3.5 Flash",
+              "value": "gemini-3.5-flash"
+            },
+            {
+              "title": "Gemini 3.1 Pro Custom Tools",
+              "value": "gemini-3.1-pro-preview-customtools"
+            },
+            {
+              "title": "Gemini 3 Pro Preview",
+              "value": "gemini-3-pro-preview"
+            },
+            {
+              "title": "Gemini 3 Flash Preview",
+              "value": "gemini-3-flash-preview"
+            },
+            {
+              "title": "Gemma 3 27B",
+              "value": "gemma-3-27b-it"
+            },
+            {
+              "title": "Gemma 3 12B",
+              "value": "gemma-3-12b-it"
+            },
+            {
+              "title": "Gemma 3 4B",
+              "value": "gemma-3-4b-it"
+            },
+            {
+              "title": "Gemma 3 1B",
+              "value": "gemma-3-1b-it"
+            },
+            {
+              "title": "Deep Research Pro Preview",
+              "value": "deep-research-pro-preview-12-2025"
+            }
           ]
         },
         {
@@ -115,27 +190,90 @@
           "required": false,
           "default": "English",
           "data": [
-            { "title": "English", "value": "English" },
-            { "title": "Spanish", "value": "Spanish" },
-            { "title": "Japanese", "value": "Japanese" },
-            { "title": "Chinese", "value": "Chinese" },
-            { "title": "Korean", "value": "Korean" },
-            { "title": "French", "value": "French" },
-            { "title": "German", "value": "German" },
-            { "title": "Italian", "value": "Italian" },
-            { "title": "Portuguese", "value": "Portuguese" },
-            { "title": "Russian", "value": "Russian" },
-            { "title": "Arabic", "value": "Arabic" },
-            { "title": "Hindi", "value": "Hindi" },
-            { "title": "Thai", "value": "Thai" },
-            { "title": "Vietnamese", "value": "Vietnamese" },
-            { "title": "Indonesian", "value": "Indonesian" },
-            { "title": "Dutch", "value": "Dutch" },
-            { "title": "Swedish", "value": "Swedish" },
-            { "title": "Polish", "value": "Polish" },
-            { "title": "Turkish", "value": "Turkish" },
-            { "title": "Greek", "value": "Greek" },
-            { "title": "Hebrew", "value": "Hebrew" }
+            {
+              "title": "English",
+              "value": "English"
+            },
+            {
+              "title": "Spanish",
+              "value": "Spanish"
+            },
+            {
+              "title": "Japanese",
+              "value": "Japanese"
+            },
+            {
+              "title": "Chinese",
+              "value": "Chinese"
+            },
+            {
+              "title": "Korean",
+              "value": "Korean"
+            },
+            {
+              "title": "French",
+              "value": "French"
+            },
+            {
+              "title": "German",
+              "value": "German"
+            },
+            {
+              "title": "Italian",
+              "value": "Italian"
+            },
+            {
+              "title": "Portuguese",
+              "value": "Portuguese"
+            },
+            {
+              "title": "Russian",
+              "value": "Russian"
+            },
+            {
+              "title": "Arabic",
+              "value": "Arabic"
+            },
+            {
+              "title": "Hindi",
+              "value": "Hindi"
+            },
+            {
+              "title": "Thai",
+              "value": "Thai"
+            },
+            {
+              "title": "Vietnamese",
+              "value": "Vietnamese"
+            },
+            {
+              "title": "Indonesian",
+              "value": "Indonesian"
+            },
+            {
+              "title": "Dutch",
+              "value": "Dutch"
+            },
+            {
+              "title": "Swedish",
+              "value": "Swedish"
+            },
+            {
+              "title": "Polish",
+              "value": "Polish"
+            },
+            {
+              "title": "Turkish",
+              "value": "Turkish"
+            },
+            {
+              "title": "Greek",
+              "value": "Greek"
+            },
+            {
+              "title": "Hebrew",
+              "value": "Hebrew"
+            }
           ]
         },
         {
@@ -149,7 +287,7 @@
         {
           "name": "showFurigana",
           "title": "Show Furigana",
-          "description": "Add furigana readings via Gemini — consumes AI tokens on each search",
+          "description": "Add furigana readings above translations",
           "type": "checkbox",
           "required": false,
           "default": false
@@ -165,8 +303,16 @@
       ]
     }
   ],
+  "overrides": {
+    "kuroshiro-analyzer-kuromoji": {
+      "kuromoji": "npm:@sglkc/kuromoji@^1.1.0"
+    }
+  },
   "dependencies": {
+    "@sglkc/kuromoji": "^1.1.0",
     "@vicinae/api": "^0.8.2",
+    "kuroshiro": "^1.2.0",
+    "kuroshiro-analyzer-kuromoji": "^1.1.0",
     "undici": "^5.12.0"
   },
   "devDependencies": {

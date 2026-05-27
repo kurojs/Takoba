@@ -134,9 +134,45 @@ function t(key: string, lang: Lang): string {
 // In-memory cache for API calls
 // ────────────────────────────────────────────
 
-const furiganaCache = new Map<string, string>();
 const aiExplainCache = new Map<string, { response: string; timestamp: number }>();
 const AI_EXPLAIN_CACHE_TTL = 3_600_000; // 1 hour
+
+// ────────────────────────────────────────────
+// Kuroshiro + kuromoji for furigana
+// ────────────────────────────────────────────
+
+let kuroshiroInstance: any = null;
+let kuroshiroInitPromise: Promise<void> | null = null;
+
+async function getKuroshiro() {
+  if (kuroshiroInstance) return;
+  if (kuroshiroInitPromise) return kuroshiroInitPromise;
+  kuroshiroInitPromise = (async () => {
+    try {
+      const Kuroshiro = require("kuroshiro").default;
+      const KuromojiAnalyzer = require("kuroshiro-analyzer-kuromoji");
+      const Analyzer = KuromojiAnalyzer.default || KuromojiAnalyzer;
+      kuroshiroInstance = new Kuroshiro();
+      await kuroshiroInstance.init(new Analyzer());
+    } catch {}
+  })();
+  return kuroshiroInitPromise;
+}
+
+async function convertFurigana(text: string): Promise<string | null> {
+  try {
+    await getKuroshiro();
+    if (!kuroshiroInstance) return null;
+    const result = await kuroshiroInstance.convert(text, {
+      to: "hiragana",
+      mode: "okurigana",
+    });
+    if (!result || result === text) return null;
+    return result;
+  } catch {
+    return null;
+  }
+}
 
 // ────────────────────────────────────────────
 // Types
@@ -762,25 +798,6 @@ async function queryGemini(
 
   const data = (await res.json()) as any;
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || "⚠️ No response from AI";
-}
-
-async function furiganizeText(text: string, apiKey: string, model: string): Promise<string> {
-  const prompt = `Add furigana readings in parentheses after each kanji in this Japanese text. Return ONLY the annotated text, no explanation, no extra formatting: ${text}`;
-  const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    }),
-  });
-
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(`Gemini API error (${res.status}): ${errBody}`);
-  }
-
-  const data = (await res.json()) as any;
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || text;
 }
 
 function formatAnkiBack(
@@ -1451,33 +1468,20 @@ export default function Command() {
   const [furiganaText, setFuriganaText] = useState("");
 
   useEffect(() => {
-    if (!preferences.showFurigana || !debouncedText || !preferences.geminiApiKey) {
+    if (!preferences.showFurigana || !debouncedText) {
       setFuriganaText("");
       return;
     }
-    if (furiganaCache.has(debouncedText)) {
-      setFuriganaText(furiganaCache.get(debouncedText)!);
-      return;
-    }
     let cancelled = false;
-    furiganizeText(debouncedText, preferences.geminiApiKey, preferences.geminiModel)
-      .then(t => {
-        if (!cancelled) {
-          furiganaCache.set(debouncedText, t);
-          setFuriganaText(t);
-        }
+    convertFurigana(debouncedText)
+      .then(text => {
+        if (!cancelled) setFuriganaText(text || "");
       })
       .catch(() => {
-        if (!cancelled) {
-          setFuriganaText("");
-          showToast({
-            style: Toast.Style.Failure,
-            title: t("furiganaError", userLang),
-          }).catch(() => {});
-        }
+        if (!cancelled) setFuriganaText("");
       });
     return () => { cancelled = true; };
-  }, [preferences.showFurigana, debouncedText, preferences.geminiApiKey, preferences.geminiModel]);
+  }, [preferences.showFurigana, debouncedText]);
 
   const openAI = useCallback((query: string) => setAiQuery(query), []);
   const closeAI = useCallback(() => setAiQuery(null), []);
@@ -1552,7 +1556,7 @@ export default function Command() {
                         try {
                           const hasFurigana = preferences.showFurigana && !!furiganaText;
                           const furiganaSuffix = hasFurigana
-                            ? `\n\n> ${furiganaText}`
+                            ? `\n\n${furiganaText}`
                             : "";
                           const rawBack = `${results.translation}${furiganaSuffix}`;
                           const transTags = await generateSoundTags(
