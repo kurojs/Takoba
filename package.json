@@ -1,5 +1,6 @@
 {
   "name": "kotoba",
+  "version": "1.0.1",
   "title": "言葉",
   "description": "Japanese dictionary, translator, and Anki integration — search Jotoba, translate sentences, add cards to Anki",
   "icon": "icon.png",
@@ -12,8 +13,8 @@
   "commands": [
     {
       "name": "kotoba",
-      "version": "1.0.0",
-      "title": "Kotoba",
+"version": "1.0.1",
+          "title": "Kotoba",
       "subtitle": "Japanese Dictionary & Translator",
       "description": "Search Jotoba for words, kanji, and sentences; add to Anki; TTS with ElevenLabs",
       "mode": "view",
