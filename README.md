@@ -1,7 +1,15 @@
 <div align="center">
-  <img src="https://i.imgur.com/ji48awU.png" width="80" alt="Takoba Icon" />
-  <h1>TAKOBA <sub>言葉</sub></h1>
-  <p>Japanese dictionary, translator, TTS, and Anki integration — for launchers</p>
+  <table style="border: none; border-collapse: collapse; border-spacing: 0; background: transparent;">
+    <tr style="border: none; background: transparent;">
+      <td align="center" valign="middle" style="border: none; padding: 0 20px 0 0;">
+        <img src="https://i.imgur.com/13FTsfa.png" height="55" alt="Takoba Title" />
+      </td>
+      <td align="center" valign="middle" style="border: none; padding: 0;">
+        <img src="https://i.imgur.com/dB66ibV.png" height="75" alt="Takoba Pet" />
+      </td>
+    </tr>
+  </table>
+  <p style="margin-top: 15px;">Japanese dictionary, translator, TTS, and Anki integration — for launchers</p>
   <p>Search Jotoba for words, kanji, and sentences. Translate on the fly. Add cards to Anki with one click. Works with <b>Vicinae</b> (Linux) and <b>Raycast</b> (Mac/Windows).</p>
 </div>
 
