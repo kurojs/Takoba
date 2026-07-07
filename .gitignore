@@ -3,3 +3,8 @@ dist/
 .env
 *.log
 .DS_Store
+
+# OpenCode AI
+.atl/
+# Raycast generated
+raycast-env.d.ts
