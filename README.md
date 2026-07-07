@@ -1,8 +1,8 @@
 <div align="center">
-  <img src="https://i.imgur.com/ji48awU.png" width="80" alt="Kotoba Icon" />
-  <h1>KOTOBA <sub>言葉</sub></h1>
-  <p>Japanese dictionary, translator, and Anki integration for Vicinae</p>
-  <p>Search Jotoba for words, kanji, and sentences. Translate on the fly. Add cards to Anki with one click. All inside your launcher.</p>
+  <img src="https://i.imgur.com/ji48awU.png" width="80" alt="Takoba Icon" />
+  <h1>TAKOBA <sub>言葉</sub></h1>
+  <p>Japanese dictionary, translator, TTS, and Anki integration — for launchers</p>
+  <p>Search Jotoba for words, kanji, and sentences. Translate on the fly. Add cards to Anki with one click. Works with <b>Vicinae</b> (Linux) and <b>Raycast</b> (Mac/Windows).</p>
 </div>
 
 ---
@@ -65,43 +65,75 @@
 
 ## Installation
 
-### AUR (recommended)
+### Linux → Vicinae
+
+#### AUR (recommended for Arch Linux)
 
 ```bash
-yay -S vicinae-kotoba
+yay -S vicinae-takoba
 ```
 
-### From source
+#### From source
 
 ```bash
-# Clone
-git clone https://github.com/kurojs/vicinae-jotoba-anki.git
-cd vicinae-jotoba-anki
-
-# Install dependencies
+git clone https://github.com/kurojs/takoba.git
+cd takoba
 npm install
-
-# Build and install into Vicinae
 npm run build
 ```
 
-The extension is automatically installed to `~/.local/share/vicinae/extensions/kotoba/`. No server restart needed.
+Extension goes to `~/.local/share/vicinae/extensions/takoba/`. Restart Vicinae or run `vicinae server`.
+
+---
+
+### Mac / Windows → Raycast
+
+#### One-liner
+
+**Mac (Terminal):**
+```bash
+curl -sSL https://raw.githubusercontent.com/kurojs/Takoba/main/scripts/install-raycast.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+iwr -useb https://raw.githubusercontent.com/kurojs/Takoba/main/scripts/install-raycast.ps1 | iex
+```
+
+#### Manual
+
+```bash
+git clone https://github.com/kurojs/takoba.git ~/Takoba
+cd ~/Takoba
+npm install
+npm run build:raycast
+npx ray develop   # registers with Raycast
+```
+
+After registering with `ray develop`, the extension appears in Raycast instantly. You can Ctrl+C after it loads — the extension stays registered.
+
+---
 
 ### Requirements
 
 | Dependency | Required | Notes |
 |-----------|----------|-------|
-| [Vicinae](https://github.com/vicinaehq/vicinae) | ✅ Yes | Launcher. Install via `yay -S vicinae-bin` or from GitHub releases |
-| [Anki](https://apps.ankiweb.net) + [AnkiConnect](https://foosoft.net/projects/anki-connect/) | Optional | For Anki export features. AnkiConnect plugin code: `2055492159` |
-| [ElevenLabs](https://elevenlabs.io) API key | Optional | For text-to-speech. Get a free API key at elevenlabs.io |
-| `ffplay` (ffmpeg) or `mpv` | Optional | For audio playback: `sudo pacman -S ffmpeg` or `sudo pacman -S mpv` |
-| [Gemini](https://aistudio.google.com/) API key | Optional | For AI-powered explanations. Free tier available |
+| **Vicinae** (Linux) | ✅ For Vicinae | Launcher. Install via `yay -S vicinae-bin` or from [GitHub releases](https://github.com/vicinaehq/vicinae) |
+| **Raycast** (Mac/Windows) | ✅ For Raycast | Install from [raycast.com](https://raycast.com) |
+| Node.js ≥ 18 | ✅ Yes | Required for build |
+| [Anki](https://apps.ankiweb.net) + [AnkiConnect](https://foosoft.net/projects/anki-connect/) | Optional | For Anki export. AnkiConnect plugin code: `2055492159` |
+| [ElevenLabs](https://elevenlabs.io) API key | Optional | For TTS. Free key at elevenlabs.io |
+| `ffplay` (ffmpeg) or `mpv` | Optional | For audio on Linux: `sudo pacman -S ffmpeg` or `sudo pacman -S mpv` |
+| [Gemini](https://aistudio.google.com/) API key | Optional | For AI explanations. Free tier available |
 
 ### Verifying installation
 
 ```bash
-# Check if extension is installed
-ls ~/.local/share/vicinae/extensions/kotoba/
+# Vicinae: check if extension files exist
+ls ~/.local/share/vicinae/extensions/takoba/
+
+# Raycast: open Raycast and search for "Takoba"
+# If registered, the extension appears in the command list
 
 # Test AnkiConnect (if using Anki)
 curl -X POST http://localhost:8765 \
@@ -114,14 +146,16 @@ curl -X POST http://localhost:8765 \
 
 ## Configuration
 
-Access preferences through Vicinae's extension settings panel (`Extensions → Kotoba → Preferences`).
+Access preferences through your launcher's extension settings panel:
+- **Vicinae**: `Extensions → Takoba → Preferences`
+- **Raycast**: `⌘ , → Extensions → Takoba`
 
 ### General
 
 | Setting | Default | What it does |
 |---------|---------|-------------|
 | **Definition Language** | `Spanish` | Language for Jotoba definitions (English, Spanish, German, French, Russian, Swedish, Dutch, Hungarian, Slovenian) |
-| **Auto-load Text** | `true` | Automatically load selected/clipboard text when Kotoba opens |
+| **Auto-load Text** | `true` | Automatically load selected/clipboard text when Takoba opens |
 
 ### Anki
 
@@ -163,7 +197,7 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
 
 ### Workflow
 
-1. Launch Vicinae and search for "Kotoba"
+1. Launch your launcher (Vicinae on Linux, Raycast on Mac/Windows) and search for "Takoba"
 2. Type a Japanese word, kanji, or phrase
 3. **Translation section** appears at the top if Google Translate has results
 4. **Words** and **Kanji** sections show Jotoba dictionary results
@@ -181,21 +215,19 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
 ## Architecture
 
 ```
-                    ┌─────────────────────────────────────┐
-                    │          Vicinae Launcher            │
-                    │  ┌───────────────────────────────┐   │
-                    │  │          Kotoba (TSX)          │   │
-                    │  │  ┌─────┐ ┌──────┐ ┌────────┐  │   │
-                    │  │  │Search│→│Detail│→│Actions │  │   │
-                    │  │  └──┬──┘ └──┬───┘ └────┬───┘  │   │
-                    │  │     │       │          │       │   │
-                    │  │     ▼       ▼          ▼       │   │
-                    │  │   ┌─────────────────────────┐  │   │
-                    │  │   │       API Layer          │  │   │
-                     │  │   │ Jotoba · Google · Gemini │  │   │
-                     │  │   │   ElevenLabs             │  │   │
-                    │  │   └─────────────────────────┘  │   │
-                    └─────────────────────────────────────┘
+          ┌───────────────────┐   ┌────────────────────┐
+          │ Vicinae (Linux)    │   │ Raycast (Mac/Win)  │
+          │  ┌─────────────┐   │   │  ┌──────────────┐  │
+          │  │  Takoba     │   │   │  │  Takoba      │  │
+          │  └──────┬──────┘   │   │  └──────┬───────┘  │
+          └─────────┼──────────┘   └─────────┼──────────┘
+                    │                        │
+                    ▼                        ▼
+            ┌────────────────────────────────────┐
+            │           API / Data Layer          │
+            │ Jotoba · Google Translate · Gemini  │
+            │   ElevenLabs · AnkiConnect          │
+            └────────────────────────────────────┘
 ```
 
 ### Data Flow
@@ -203,7 +235,7 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
 1. **Search** → 500ms debounce → parallel Jotoba lookups (words + kanji) + Google Translate
 2. **Display** → Results in sections (Translation, Words, Kanji) with inline markdown
 3. **Detail** → Lazy sentence fetching from Jotoba/Tatoeba corpus
-4. **Anki** → 3 auto-created decks (Kotoba Words/Kanji/Translation) with per-deck dedup → card created using Basic model
+4. **Anki** → 3 auto-created decks (Takoba Words/Kanji/Translation) with per-deck dedup → card created using Basic model
 5. **Audio** → ElevenLabs multilingual TTS → temp MP3 → system player (ffplay/mpv)
 6. **AI** → Gemini-powered explanations for any word, kanji, or phrase
 
@@ -211,7 +243,7 @@ Access preferences through Vicinae's extension settings panel (`Extensions → K
 
 - **Single-file architecture**: ~1500 lines of TSX in one file. Separation through function boundaries.
 - **No build-time framework**: Uses Vicinae's `vici` bundler. Just TypeScript + fetch.
-- **Section-based decks**: 3 flat decks (Kotoba Words/Kanji/Translation) — no user configuration needed
+- **Section-based decks**: 3 flat decks (Takoba Words/Kanji/Translation) — no user configuration needed
 - **Lazy loading**: Example sentences fetched on-demand when selecting a word.
 - **In-memory API caching**: Furigana and AI explanation results cached for 1 hour per session.
 
@@ -247,11 +279,16 @@ vicinae server    # Restart the Vicinae server
 ### Project Structure
 
 ```
-kotoba/
+takoba/
 ├── assets/
 │   └── icon.png          # Extension icon (256×256)
 ├── src/
-│   └── kotoba.tsx         # Main source — full extension logic
+│   ├── takoba.tsx         # Main entry point
+│   ├── types.ts           # TypeScript types & constants
+│   ├── i18n/index.ts      # 9-language translations
+│   ├── api/               # External API clients
+│   ├── utils/             # Formatters & utilities
+│   └── components/        # List/detail components
 ├── package.json           # Dependencies, metadata, preferences schema
 ├── tsconfig.json          # TypeScript configuration
 └── README.md              # This file
@@ -260,8 +297,9 @@ kotoba/
 ### Commands
 
 ```bash
-npm run build     # Production build → ~/.local/share/vicinae/extensions/kotoba/
-npm run dev       # Watch mode with hot-rebuild
+npm run build            # Build for Vicinae (Linux)
+npm run build:raycast    # Build for Raycast (Mac/Windows)
+npm run dev              # Watch mode (builds for current shim)
 ```
 
 ### Code Quality
@@ -281,6 +319,7 @@ MIT — see [LICENSE](./LICENSE).
 
 - [Jotoba](https://jotoba.de) — Free multilingual Japanese dictionary API
 - [Vicinae](https://github.com/vicinaehq/vicinae) — Linux launcher platform
+- [Raycast](https://raycast.com) — Mac/Windows launcher platform
 - [AnkiConnect](https://foosoft.net/projects/anki-connect/) — Anki automation API
 - [ElevenLabs](https://elevenlabs.io) — AI text-to-speech
 - [Google Gemini](https://deepmind.google/technologies/gemini/) — AI explanation engine

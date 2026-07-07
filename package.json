@@ -1,7 +1,7 @@
 {
-  "name": "kotoba",
+  "name": "takoba",
   "version": "1.0.1",
-  "title": "言葉",
+  "title": "Takoba",
   "description": "Japanese dictionary, translator, and Anki integration — search Jotoba, translate sentences, add cards to Anki",
   "icon": "icon.png",
   "author": "kuro",
@@ -12,10 +12,9 @@
   ],
   "commands": [
     {
-      "name": "kotoba",
-"version": "1.0.1",
-          "title": "Kotoba",
-      "subtitle": "Japanese Dictionary & Translator",
+      "name": "takoba",
+      "title": "Takoba",
+      "subtitle": "辞書 · 翻訳 · 単語帳",
       "description": "Search Jotoba for words, kanji, and sentences; add to Anki; TTS with ElevenLabs",
       "mode": "view",
       "preferences": [
@@ -305,6 +304,8 @@
     }
   ],
   "overrides": {
+    "@types/react": "19.2.17",
+    "react": "19.2.7",
     "kuroshiro-analyzer-kuromoji": {
       "kuromoji": "npm:@sglkc/kuromoji@^1.1.0"
     }
@@ -317,10 +318,13 @@
     "undici": "^5.12.0"
   },
   "devDependencies": {
+    "@raycast/api": "^1.104.21",
     "typescript": "^5.9.2"
   },
   "scripts": {
-    "build": "vici build",
+    "build": "npm run build:vicinae",
+    "build:vicinae": "cp src/lib/api-shim-vicinae.ts src/lib/api-shim.ts && vici build",
+    "build:raycast": "cp src/lib/api-shim-raycast.ts src/lib/api-shim.ts && ray build",
     "dev": "vici develop"
   }
 }
