@@ -1,48 +1,29 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-INSTALL_DIR="$HOME/.local/share/raycast/extensions/takoba"
+REPO="kurojs/Takoba"
+INSTALL_DIR="${RAYCAST_EXTENSIONS:-$HOME/.config/raycast/extensions}/takoba"
+
+# Try Homebrew first
+if command -v brew &>/dev/null; then
+  brew install kurojs/tap/takoba
+  exit 0
+fi
 
 echo "=== Installing Takoba for Raycast ==="
-echo ""
 
-if ! command -v node &> /dev/null; then
-  echo "ERROR: Node.js is required. Install from https://nodejs.org"
-  exit 1
-fi
-
-if ! command -v git &> /dev/null; then
-  echo "ERROR: git is required."
-  exit 1
-fi
-
-if [ -d "$INSTALL_DIR" ]; then
-  echo "Updating existing installation..."
-  cd "$INSTALL_DIR"
-  git pull --rebase
-else
-  echo "Cloning Takoba..."
-  mkdir -p "$(dirname "$INSTALL_DIR")"
-  git clone https://github.com/kurojs/Takoba.git "$INSTALL_DIR"
-  cd "$INSTALL_DIR"
-fi
-
-echo ""
-echo "Installing dependencies..."
-npm install
-
-echo ""
-echo "Building extension for Raycast..."
-npm run build:raycast
+LATEST=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
+echo "Downloading $LATEST..."
+mkdir -p "$INSTALL_DIR"
+curl -sL "https://github.com/$REPO/releases/download/$LATEST/takoba-raycast.zip" -o /tmp/takoba-raycast.zip
+unzip -qo /tmp/takoba-raycast.zip -d "$INSTALL_DIR"
+rm /tmp/takoba-raycast.zip
 
 echo ""
 echo "============================================"
-echo " Takoba is installed at:"
+echo " Takoba installed at:"
 echo "   $INSTALL_DIR"
 echo ""
-echo " To register with Raycast, run:"
+echo " Register it:"
 echo "   cd $INSTALL_DIR && npx ray develop"
-echo ""
-echo " Or open Raycast -> 'Import Extension' ->"
-echo " Select: $INSTALL_DIR"
 echo "============================================"

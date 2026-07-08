@@ -1,4 +1,4 @@
-import { fetch } from "undici";
+import { fetch } from "../lib/api-shim";
 import { writeFile, unlink } from "fs/promises";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -6,6 +6,10 @@ import { join } from "path";
 import { environment } from "../lib/api-shim";
 
 const execAsync = promisify(exec);
+
+function getPlatform(): "win32" | "darwin" | "linux" {
+  return process.platform as "win32" | "darwin" | "linux";
+}
 
 async function ttsFetch(
   text: string,
@@ -52,6 +56,24 @@ export async function playElevenLabsAudio(
   const audioPath = join(tempDir, `takoba_tts_${Date.now()}.mp3`);
   await writeFile(audioPath, audioData);
 
+  const platform = getPlatform();
+
+  if (platform === "win32") {
+    exec(`start "" "${audioPath}"`, async (err) => {
+      await unlink(audioPath).catch(() => {});
+      if (err) console.error("Error playing audio:", err);
+    });
+    return;
+  }
+
+  if (platform === "darwin") {
+    exec(`afplay "${audioPath}"`, async (err) => {
+      await unlink(audioPath).catch(() => {});
+      if (err) console.error("Error playing audio:", err);
+    });
+    return;
+  }
+
   let playCommand = "";
   try {
     await execAsync("which ffplay");
@@ -61,13 +83,8 @@ export async function playElevenLabsAudio(
       await execAsync("which mpv");
       playCommand = `mpv --no-video --really-quiet "${audioPath}"`;
     } catch {
-      try {
-        await execAsync("which afplay");
-        playCommand = `afplay "${audioPath}"`;
-      } catch {
-        await unlink(audioPath).catch(() => {});
-        throw new Error("No audio player found (install ffplay or mpv)");
-      }
+      await unlink(audioPath).catch(() => {});
+      throw new Error("No audio player found (install ffplay or mpv)");
     }
   }
 

@@ -12,3 +12,5 @@ export {
   getSelectedText,
   showToast,
 } from "@vicinae/api";
+
+export { fetch } from "undici";

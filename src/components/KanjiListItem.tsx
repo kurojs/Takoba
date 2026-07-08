@@ -62,7 +62,7 @@ export default function KanjiListItem({
           <Action
             title={t("addToAnki", lang)}
             icon={{ source: Icon.Plus, tintColor: Color.Green }}
-            shortcut={{ modifiers: ["cmd"], key: "a" }}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
             onAction={async () => {
               const audioTexts: { text: string; language?: string }[] = [];
               if (kanji.onyomi?.length)

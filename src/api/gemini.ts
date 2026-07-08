@@ -1,4 +1,4 @@
-import { fetch } from "undici";
+import { fetch } from "../lib/api-shim";
 
 const INTERNAL_SYSTEM_PROMPT = `You are a helpful Japanese language learning assistant. Provide clear, pedagogical explanations about Japanese words, kanji, phrases, and grammar.
 

@@ -1,4 +1,4 @@
-import { fetch } from "undici";
+import { fetch } from "../lib/api-shim";
 import { LANGUAGE_CODE_MAP } from "../types";
 
 export async function translateViaGoogle(

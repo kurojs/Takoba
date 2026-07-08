@@ -26,7 +26,8 @@ export async function convertFurigana(text: string): Promise<string | null> {
     });
     if (!result || result === text) return null;
     return result;
-  } catch {
+  } catch (e) {
+    console.error("Takoba: furigana analysis failed", e);
     return null;
   }
 }

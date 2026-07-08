@@ -12,3 +12,5 @@ export {
   getSelectedText,
   showToast,
 } from "@raycast/api";
+
+export const fetch = globalThis.fetch;

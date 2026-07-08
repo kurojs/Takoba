@@ -46,6 +46,7 @@ export default function Command() {
     if (!preferences.autoLoadText) return;
     const loadInitialText = async () => {
       try {
+        await new Promise(r => setTimeout(r, 200));
         const selectedText = await getSelectedText();
         if (selectedText) {
           setSearchText(selectedText);
@@ -245,7 +246,7 @@ export default function Command() {
                     <Action
                       title={t("addSentenceToAnki", userLang)}
                       icon={{ source: Icon.Plus, tintColor: Color.Green }}
-                      shortcut={{ modifiers: ["cmd"], key: "a" }}
+                      shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
                       onAction={async () => {
                         const hasFurigana = preferences.showFurigana && !!furiganaText;
                         const rawBack = results.translation + (hasFurigana ? `\n\n${furiganaText}` : "");
@@ -271,7 +272,7 @@ export default function Command() {
                     <Action
                       title={t("playAudio", userLang)}
                       icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
-                      shortcut={{ modifiers: ["cmd"], key: "p" }}
+                      shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
                       onAction={async () => {
                         try {
                           await playElevenLabsAudio(

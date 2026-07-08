@@ -1,18 +1,77 @@
-import { fetch } from "undici";
+import { fetch } from "../lib/api-shim";
 import { Section, SECTION_DECKS } from "../types";
 
-export async function checkAnkiConnect(port: string = "8765"): Promise<boolean> {
+interface AnkiNote {
+  deckName: string;
+  modelName: string;
+  fields: Record<string, string>;
+  tags?: string[];
+}
+
+interface AnkiCard {
+  cardId: number;
+  note: number[];
+  fields?: Record<string, string>;
+}
+
+export async function ankiInvoke(
+  action: string,
+  params: any = {},
+  version = 6,
+  port = "8765",
+): Promise<any> {
+  const res = await fetch(`http://127.0.0.1:${port}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, params, version }),
+  });
+  const data: any = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.result;
+}
+
+export async function getAnkiCards(query: string): Promise<AnkiCard[]> {
+  const cardIds: number[] = await ankiInvoke("findCards", { query });
+  if (cardIds.length === 0) return [];
+
+  const cards: any[] = await ankiInvoke("cardsInfo", { cards: cardIds });
+  return cards.map((c: any) => ({
+    cardId: c.cardId,
+    note: c.note,
+    fields: c.fields,
+  }));
+}
+
+export async function createAnkiNote(
+  deckName: string,
+  front: string,
+  back: string,
+  tags?: string[],
+): Promise<number | null> {
+  const modelName = "Basic";
+  const fieldNames: string[] = await ankiInvoke("modelFieldNames", { modelName });
+  const frontKey = fieldNames[0] || "Front";
+  const backKey = fieldNames[1] || "Back";
+  const note: AnkiNote = {
+    deckName,
+    modelName,
+    fields: { [frontKey]: front, [backKey]: back },
+    tags,
+  };
+  return await ankiInvoke("addNote", { note });
+}
+
+export async function checkAnkiConnect(port: string): Promise<boolean> {
   try {
-    const res = await fetch(`http://localhost:${port}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "version", version: 6 }),
-    });
-    const data = (await res.json()) as any;
-    return data.result !== null && data.result >= 6;
+    await ankiInvoke("deckNames", {}, 6, port);
+    return true;
   } catch {
     return false;
   }
+}
+
+export async function getAnkiDecks(): Promise<string[]> {
+  return await ankiInvoke("deckNames");
 }
 
 async function ensureDeckExists(
@@ -55,9 +114,12 @@ export async function addToAnki(
 
   const modelName = "Basic";
 
+  const fieldNames: string[] = await ankiInvoke("modelFieldNames", { modelName }).catch(() => ["Front", "Back"]);
+  const frontKey = fieldNames[0] || "Front";
+  const backKey = fieldNames[1] || "Back";
   const noteFields: Record<string, string> = {
-    Front: front,
-    Back: back,
+    [frontKey]: front,
+    [backKey]: back,
   };
 
   const res = await fetch(`http://localhost:${port}`, {

@@ -8,3 +8,5 @@ dist/
 .atl/
 # Raycast generated
 raycast-env.d.ts
+# Engram memory config
+.engram/

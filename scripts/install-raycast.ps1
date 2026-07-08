@@ -1,51 +1,33 @@
-$installDir = "$HOME\.local\share\raycast\extensions\takoba"
+$REPO = "kurojs/Takoba"
+$installDir = "$env:APPDATA\Raycast\extensions\takoba"
 
 Write-Host "=== Installing Takoba for Raycast ===" -ForegroundColor Cyan
 Write-Host ""
 
-# Check Node.js
-try {
-  node --version | Out-Null
-} catch {
-  Write-Host "ERROR: Node.js is required. Install from https://nodejs.org" -ForegroundColor Red
-  exit 1
+# Try Scoop first
+if (Get-Command scoop -ErrorAction SilentlyContinue) {
+  scoop bucket add kurojs https://github.com/kurojs/scoop-bucket 2>$null
+  scoop install takoba
+  exit
 }
 
-# Check git
-try {
-  git --version | Out-Null
-} catch {
-  Write-Host "ERROR: git is required." -ForegroundColor Red
-  exit 1
+Write-Host "Downloading latest release..."
+$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest"
+$zipUrl = "https://github.com/$REPO/releases/download/$($release.tag_name)/takoba-raycast.zip"
+$zipPath = "$env:TEMP\takoba-raycast.zip"
+Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath
+
+if (-not (Test-Path $installDir)) {
+  New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 }
-
-if (Test-Path $installDir) {
-  Write-Host "Updating existing installation..."
-  Set-Location $installDir
-  git pull --rebase
-} else {
-  Write-Host "Cloning Takoba..."
-  New-Item -ItemType Directory -Path (Split-Path $installDir -Parent) -Force | Out-Null
-  git clone https://github.com/kurojs/Takoba.git $installDir
-  Set-Location $installDir
-}
-
-Write-Host ""
-Write-Host "Installing dependencies..."
-npm install
-
-Write-Host ""
-Write-Host "Building extension for Raycast..."
-npm run build:raycast
+Expand-Archive -Path $zipPath -DestinationPath $installDir -Force
+Remove-Item $zipPath
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Green
-Write-Host " Takoba is installed at:" -ForegroundColor Green
+Write-Host " Takoba installed at:" -ForegroundColor Green
 Write-Host "   $installDir" -ForegroundColor Green
 Write-Host "" -ForegroundColor Green
-Write-Host " To register with Raycast, run:" -ForegroundColor Green
+Write-Host " Register it:" -ForegroundColor Green
 Write-Host "   cd $installDir && npx ray develop" -ForegroundColor Green
-Write-Host "" -ForegroundColor Green
-Write-Host " Or open Raycast -> 'Import Extension' ->" -ForegroundColor Green
-Write-Host "   Select: $installDir" -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Green

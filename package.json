@@ -1,9 +1,9 @@
 {
   "name": "takoba",
-  "version": "1.0.1",
+  "version": "1.1.1",
   "title": "Takoba",
   "description": "Japanese dictionary, translator, and Anki integration — search Jotoba, translate sentences, add cards to Anki",
-  "icon": "icon.png",
+  "icon": "assets/icon.png",
   "author": "kuro",
   "license": "MIT",
   "categories": [

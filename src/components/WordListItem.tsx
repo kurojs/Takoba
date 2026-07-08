@@ -76,7 +76,7 @@ export default function WordListItem({
           <Action
             title={t("addToAnki", lang)}
             icon={{ source: Icon.Plus, tintColor: Color.Green }}
-            shortcut={{ modifiers: ["cmd"], key: "a" }}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
             onAction={async () => {
               const query = word.reading.kanji || word.reading.kana;
               if (!query) return;
@@ -104,7 +104,7 @@ export default function WordListItem({
           <Action
             title={t("playAudio", lang)}
             icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
-            shortcut={{ modifiers: ["cmd"], key: "p" }}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
             onAction={async () => {
               const text = word.reading.kana;
               try {
