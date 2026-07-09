@@ -13,35 +13,29 @@ function copyDict(destDir) {
   console.log(`Takoba: dict copied to ${dictDest}`);
 }
 
-function platformVicinaeDir() {
-  const p = process.platform;
-  if (p === "linux") {
-    const xdg = process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
-    return path.join(xdg, "vicinae", "extensions", "takoba");
-  }
-  if (p === "darwin") {
-    return path.join(os.homedir(), "Library", "Application Support", "vicinae", "extensions", "takoba");
-  }
-  if (p === "win32") {
-    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "vicinae", "extensions", "takoba");
-  }
-  return null;
-}
-
 const destArg = process.argv[2];
 if (destArg) {
   copyDict(path.resolve(destArg));
 } else {
   const candidates = [];
 
-  const vicDir = platformVicinaeDir();
-  if (vicDir) candidates.push(vicDir);
+  const platform = process.platform;
 
-  if (process.platform === "linux") {
+  // Vicinae — Linux only
+  if (platform === "linux") {
+    const xdg = process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
+    candidates.push(path.join(xdg, "vicinae", "extensions", "takoba"));
+  }
+
+  // Raycast
+  if (platform === "linux") {
     candidates.push(path.join(os.homedir(), ".config", "raycast", "extensions", "takoba"));
   }
-  if (process.platform === "darwin") {
+  if (platform === "darwin") {
     candidates.push(path.join(os.homedir(), "Library", "Application Support", "com.raycast.macos", "extensions", "takoba"));
+  }
+  if (platform === "win32") {
+    candidates.push(path.join(os.homedir(), ".config", "raycast-x", "extensions", "takoba"));
   }
 
   candidates.push(path.join(__dirname, "..", "dist"));
