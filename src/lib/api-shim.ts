@@ -11,6 +11,6 @@ export {
   getPreferenceValues,
   getSelectedText,
   showToast,
-} from "@raycast/api";
+} from "@vicinae/api";
 
-export const fetch = globalThis.fetch;
+export { fetch } from "undici";

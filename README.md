@@ -73,13 +73,11 @@
 ### Linux → Vicinae
 
 ```bash
-# AUR (recommended)
-yay -S vicinae-takoba
-
-# Or from source
+# AUR — outdated, points to old repo. Install from source instead:
 git clone https://github.com/kurojs/takoba.git
 cd takoba
-npm install && npm run build
+npm install
+npm run build
 ```
 
 Extension goes to `~/.local/share/vicinae/extensions/takoba/`. Restart Vicinae or run `vicinae server`.
