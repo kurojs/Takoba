@@ -1,6 +1,6 @@
 {
   "name": "takoba",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "title": "Takoba",
   "description": "Japanese dictionary, translator, and Anki integration — search Jotoba, translate sentences, add cards to Anki",
   "icon": "icon.png",
@@ -94,7 +94,7 @@
           "description": "Automatically load selected text from clipboard",
           "type": "checkbox",
           "required": false,
-          "default": true
+          "default": false
         },
         {
           "name": "geminiApiKey",

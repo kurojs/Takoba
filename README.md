@@ -105,13 +105,14 @@ After registering with `npx ray develop`, the extension appears in Raycast insta
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Definition Language | Spanish | Language for Jotoba definitions (9 languages) |
+| Definition Language | English | Language for Jotoba definitions (9 languages) |
 | AnkiConnect Port | 8765 | Local port for AnkiConnect API |
 | ElevenLabs API Key | — | TTS. Get one at elevenlabs.io |
 | ElevenLabs Voice ID | `21m00Tcm4TlvDq8ikWAM` | Voice for word pronunciation |
 | Gemini API Key | — | Required for AI features |
 | AI Model | `gemini-2.5-flash` | 15 models available |
-| AI Response Language | Spanish | Language for AI explanations (21 languages) |
+| AI Response Language | English | Language for AI explanations (21 languages) |
+| Auto-load Selected Text | false | Load selected text from clipboard on launch |
 | Show Furigana | false | Furigana readings above translations |
 
 ---
