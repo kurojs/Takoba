@@ -91,7 +91,9 @@ Extension goes to `~/.local/share/vicinae/extensions/takoba/`. Restart Vicinae o
 ```bash
 git clone https://github.com/kurojs/takoba.git
 cd takoba
-npm install && npm run build:raycast && npx ray develop
+npm install
+npm run build:raycast
+npx ray develop
 ```
 
 After registering with `npx ray develop`, the extension appears in Raycast instantly. You can Ctrl+C after it loads — the extension stays registered.

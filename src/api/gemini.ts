@@ -21,8 +21,8 @@ export async function queryGemini(
 ): Promise<string> {
   const contents: { role: string; parts: { text: string }[] }[] = [];
 
-  if (customPrompt.trim()) {
-    contents.push({ role: "user", parts: [{ text: customPrompt.trim() }] });
+  if ((customPrompt || "").trim()) {
+    contents.push({ role: "user", parts: [{ text: (customPrompt || "").trim() }] });
     contents.push({ role: "model", parts: [{ text: "Understood. I will follow these instructions for every response." }] });
   }
 

@@ -103,6 +103,32 @@ async function ensureDeckExists(
   }
 }
 
+async function ensureModelExists(
+  modelName: string,
+  port: string = "8765",
+): Promise<void> {
+  const modelNames: string[] = await ankiInvoke("modelNames", {}, 6, port).catch(() => []);
+  if (modelNames.includes(modelName)) return;
+
+  await ankiInvoke(
+    "createModel",
+    {
+      modelName: "Basic",
+      inOrderFields: ["Front", "Back"],
+      css: ".card { font-family: arial; font-size: 20px; text-align: center; color: black; background-color: white; }",
+      cardTemplates: [
+        {
+          Name: "Card 1",
+          Front: "{{Front}}",
+          Back: "{{FrontSide}}<hr id=\"answer\">{{Back}}",
+        },
+      ],
+    },
+    6,
+    port,
+  );
+}
+
 export async function addToAnki(
   section: Section,
   front: string,
@@ -111,10 +137,9 @@ export async function addToAnki(
 ): Promise<number> {
   const deckName = SECTION_DECKS[section];
   await ensureDeckExists(deckName, port);
+  await ensureModelExists("Basic", port);
 
-  const modelName = "Basic";
-
-  const fieldNames: string[] = await ankiInvoke("modelFieldNames", { modelName }).catch(() => ["Front", "Back"]);
+  const fieldNames: string[] = await ankiInvoke("modelFieldNames", { modelName: "Basic" });
   const frontKey = fieldNames[0] || "Front";
   const backKey = fieldNames[1] || "Back";
   const noteFields: Record<string, string> = {
@@ -122,34 +147,19 @@ export async function addToAnki(
     [backKey]: back,
   };
 
-  const res = await fetch(`http://localhost:${port}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "addNote",
-      version: 6,
-      params: {
-        note: {
-          deckName,
-          modelName,
-          fields: noteFields,
-          options: {
-            allowDuplicate: false,
-            duplicateScope: "deck",
-            duplicateScopeOptions: { deckName },
-          },
-          tags: ["vicinae", "japanese", "takoba"],
-        },
+  return await ankiInvoke("addNote", {
+    note: {
+      deckName,
+      modelName: "Basic",
+      fields: noteFields,
+      options: {
+        allowDuplicate: false,
+        duplicateScope: "deck",
+        duplicateScopeOptions: { deckName },
       },
-    }),
-  });
-
-  const result = (await res.json()) as any;
-
-  if (result.error) throw new Error(result.error);
-  if (!result.result)
-    throw new Error("Failed to add note - check Anki error log.");
-  return result.result as number;
+      tags: ["vicinae", "japanese", "takoba"],
+    },
+  }, 6, port);
 }
 
 async function storeMediaFile(

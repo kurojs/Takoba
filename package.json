@@ -323,8 +323,8 @@
   },
   "scripts": {
     "build": "npm run build:vicinae",
-    "build:vicinae": "cp src/lib/api-shim-vicinae.ts src/lib/api-shim.ts && vici build",
-    "build:raycast": "cp src/lib/api-shim-raycast.ts src/lib/api-shim.ts && ray build",
+    "build:vicinae": "node scripts/copy-shim.js vicinae && vici build",
+    "build:raycast": "node scripts/copy-shim.js raycast && ray build",
     "dev": "vici develop"
   }
 }

@@ -59,8 +59,7 @@ export async function playElevenLabsAudio(
   const platform = getPlatform();
 
   if (platform === "win32") {
-    exec(`start "" "${audioPath}"`, async (err) => {
-      await unlink(audioPath).catch(() => {});
+    exec(`start "" "${audioPath}"`, (err) => {
       if (err) console.error("Error playing audio:", err);
     });
     return;
