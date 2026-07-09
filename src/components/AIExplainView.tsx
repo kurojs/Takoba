@@ -82,7 +82,7 @@ export default function AIExplainView({
   if (error) {
     return (
       <Detail
-        markdown={`<div style="height:100vh;display:flex;align-items:center;justify-content:center;text-align:center"><em>${t("aiExplainError", lang)}</em></div>`}
+        markdown={`<div style="height:100vh;display:flex;align-items:center;justify-content:center;text-align:center"><em>${t("aiExplainError", lang)}</em>\n\n<small>${error}</small></div>`}
         actions={
           <ActionPanel>
             <Action title="Back" icon={Icon.ArrowLeft} onAction={onBack} />
@@ -118,6 +118,7 @@ export default function AIExplainView({
                   await showToast({
                     style: Toast.Style.Failure,
                     title: t("ttsError", lang),
+                    message: String(e),
                   });
                 }
               }}

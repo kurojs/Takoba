@@ -28,7 +28,8 @@ export async function addNote(
       message: t("cardAddedMsg", lang).replace("{deck}", deckName),
     });
   } catch (error) {
-    if (String(error).toLowerCase().includes("duplicate")) {
+    const msg = String(error);
+    if (msg.toLowerCase().includes("duplicate")) {
       await showToast({
         style: Toast.Style.Failure,
         title: t("alreadyInDeck", lang),
@@ -38,6 +39,7 @@ export async function addNote(
       await showToast({
         style: Toast.Style.Failure,
         title: t("errorAdding", lang),
+        message: msg,
       });
     }
   }

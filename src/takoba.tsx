@@ -289,6 +289,7 @@ export default function Command() {
                           await showToast({
                             style: Toast.Style.Failure,
                             title: t("ttsError", userLang),
+                            message: String(error),
                           });
                         }
                       }}

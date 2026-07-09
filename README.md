@@ -86,43 +86,12 @@ Extension goes to `~/.local/share/vicinae/extensions/takoba/`. Restart Vicinae o
 
 ---
 
-### Mac → Raycast
-
-One-liner downloads a pre-built zip — no build tools needed.
+### Mac / Windows → Raycast
 
 ```bash
-# Recommended (with Homebrew)
-brew install kurojs/tap/takoba
-cd "$(brew --prefix)/libexec/takoba" && npx ray develop
-
-# Or one-liner (downloads pre-built zip)
-curl -fsSL https://raw.githubusercontent.com/kurojs/Takoba/main/scripts/install-raycast.sh | bash
-cd ~/.config/raycast/extensions/takoba && npx ray develop
-
-# Or from source
 git clone https://github.com/kurojs/takoba.git
 cd takoba
 npm install && npm run build:raycast && npx ray develop
-```
-
-### Windows → Raycast
-
-One-liner downloads a pre-built zip — no build tools needed.
-
-```powershell
-# Recommended (with Scoop)
-scoop bucket add kurojs https://github.com/kurojs/scoop-bucket
-scoop install takoba
-cd "$(scoop prefix takoba)" ; npx ray develop
-
-# Or one-liner (downloads pre-built zip)
-iwr -useb https://raw.githubusercontent.com/kurojs/Takoba/main/scripts/install-raycast.ps1 | iex
-cd "$env:APPDATA\Raycast\extensions\takoba" ; npx ray develop
-
-# Or from source
-git clone https://github.com/kurojs/takoba.git
-cd takoba
-npm install ; npm run build:raycast ; npx ray develop
 ```
 
 After registering with `npx ray develop`, the extension appears in Raycast instantly. You can Ctrl+C after it loads — the extension stays registered.

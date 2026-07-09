@@ -122,6 +122,7 @@ export default function WordListItem({
                 await showToast({
                   style: Toast.Style.Failure,
                   title: t("ttsError", lang),
+                  message: String(error),
                 });
               }
             }}
