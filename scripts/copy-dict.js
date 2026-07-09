@@ -13,9 +13,22 @@ function copyDict(destDir) {
   console.log(`Takoba: dict copied to ${dictDest}`);
 }
 
+function copyWorker(destDir) {
+  const workerSrc = path.join(__dirname, "..", "dist", "furigana-worker.cjs");
+  if (!fs.existsSync(workerSrc)) {
+    console.warn("Takoba: furigana worker not found at", workerSrc);
+    return;
+  }
+  const workerDestDir = path.join(destDir, "scripts");
+  fs.mkdirSync(workerDestDir, { recursive: true });
+  fs.copyFileSync(workerSrc, path.join(workerDestDir, "furigana-worker.cjs"));
+  console.log(`Takoba: furigana worker copied to ${workerDestDir}`);
+}
+
 const destArg = process.argv[2];
 if (destArg) {
   copyDict(path.resolve(destArg));
+  copyWorker(path.resolve(destArg));
 } else {
   const candidates = [];
 
@@ -40,8 +53,17 @@ if (destArg) {
   for (const dir of candidates) {
     if (fs.existsSync(dir)) {
       copyDict(dir);
+      copyWorker(dir);
       return;
     }
+  }
+
+  // Fallback: if no extension dir found, try dist/
+  const fallbackDir = path.join(__dirname, "..", "dist");
+  if (fs.existsSync(fallbackDir)) {
+    copyDict(fallbackDir);
+    copyWorker(fallbackDir);
+    return;
   }
 
   console.error("Takoba: could not find extension output directory");

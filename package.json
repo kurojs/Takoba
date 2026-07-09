@@ -1,6 +1,6 @@
 {
   "name": "takoba",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "title": "Takoba",
   "description": "Japanese dictionary, translator, and Anki integration — search Jotoba, translate sentences, add cards to Anki",
   "icon": "icon.png",
@@ -319,12 +319,13 @@
   },
   "devDependencies": {
     "@raycast/api": "^1.104.21",
+    "esbuild": "^0.28.1",
     "typescript": "^5.9.2"
   },
   "scripts": {
     "build": "npm run build:vicinae",
-    "build:vicinae": "node scripts/copy-shim.js vicinae && vici build && node scripts/copy-dict.js",
-    "build:raycast": "node scripts/copy-shim.js raycast && ray build && node scripts/copy-dict.js",
+    "build:vicinae": "node scripts/copy-shim.js vicinae && node scripts/build-worker.js && vici build && node scripts/copy-dict.js",
+    "build:raycast": "node scripts/copy-shim.js raycast && node scripts/build-worker.js && ray build && node scripts/copy-dict.js",
     "dev": "vici develop"
   }
 }

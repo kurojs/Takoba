@@ -1,11 +1,20 @@
-let kuroshiroInstance: any = null;
-let kuroshiroInitPromise: Promise<void> | null = null;
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { execFile } from "child_process";
+import { existsSync } from "fs";
+
+let kuroshiroInstance: any = null;
+let kuroshiroInitPromise: Promise<void> | null = null;
+let workerAvailable: boolean | null = null;
 
 function getDictDir(): string {
   if (typeof __dirname !== "undefined") return join(__dirname, "dict");
   return join(dirname(fileURLToPath(import.meta.url)), "dict");
+}
+
+function getWorkerPath(): string {
+  if (typeof __dirname !== "undefined") return join(__dirname, "scripts", "furigana-worker.cjs");
+  return join(dirname(fileURLToPath(import.meta.url)), "scripts", "furigana-worker.cjs");
 }
 
 async function getKuroshiro() {
@@ -25,7 +34,46 @@ async function getKuroshiro() {
   return kuroshiroInitPromise;
 }
 
+function checkWorker(): boolean {
+  if (workerAvailable === null) {
+    try {
+      workerAvailable = existsSync(getWorkerPath());
+    } catch {
+      workerAvailable = false;
+    }
+  }
+  return workerAvailable;
+}
+
+function convertViaWorker(text: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (!checkWorker()) {
+      resolve(null);
+      return;
+    }
+    try {
+      const child = execFile(
+        process.execPath,
+        [getWorkerPath(), text],
+        { timeout: 10000, maxBuffer: 1024 * 1024 },
+        (error, stdout) => {
+          if (error) {
+            resolve(null);
+            return;
+          }
+          resolve(stdout?.trim() || null);
+        },
+      );
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 export async function convertFurigana(text: string): Promise<string | null> {
+  const workerResult = await convertViaWorker(text);
+  if (workerResult !== null) return workerResult;
+
   try {
     await getKuroshiro();
     if (!kuroshiroInstance) return null;
