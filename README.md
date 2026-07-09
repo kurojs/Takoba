@@ -73,7 +73,10 @@
 ### Linux → Vicinae
 
 ```bash
-# AUR — outdated, points to old repo. Install from source instead:
+# AUR:
+yay -S vicinae-takoba
+
+# Or install from source:
 git clone https://github.com/kurojs/takoba.git
 cd takoba
 npm install

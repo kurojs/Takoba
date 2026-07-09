@@ -9,9 +9,13 @@ async function getKuroshiro() {
       const Kuroshiro = require("kuroshiro").default;
       const KuromojiAnalyzer = require("kuroshiro-analyzer-kuromoji");
       const Analyzer = KuromojiAnalyzer.default || KuromojiAnalyzer;
+      const path = require("path");
+      const dictPath = path.join(__dirname, "dict");
       kuroshiroInstance = new Kuroshiro();
-      await kuroshiroInstance.init(new Analyzer());
-    } catch {}
+      await kuroshiroInstance.init(new Analyzer({ dictPath }));
+    } catch (e) {
+      console.error("Takoba: kuroshiro init failed", e);
+    }
   })();
   return kuroshiroInitPromise;
 }

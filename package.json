@@ -323,7 +323,7 @@
   },
   "scripts": {
     "build": "npm run build:vicinae",
-    "build:vicinae": "node scripts/copy-shim.js vicinae && vici build",
+    "build:vicinae": "node scripts/copy-shim.js vicinae && vici build && node scripts/copy-dict.js",
     "build:raycast": "node scripts/copy-shim.js raycast && ray build",
     "dev": "vici develop"
   }
