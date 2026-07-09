@@ -1,5 +1,12 @@
 let kuroshiroInstance: any = null;
 let kuroshiroInitPromise: Promise<void> | null = null;
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+function getDictDir(): string {
+  if (typeof __dirname !== "undefined") return join(__dirname, "dict");
+  return join(dirname(fileURLToPath(import.meta.url)), "dict");
+}
 
 async function getKuroshiro() {
   if (kuroshiroInstance) return;
@@ -9,10 +16,8 @@ async function getKuroshiro() {
       const Kuroshiro = require("kuroshiro").default;
       const KuromojiAnalyzer = require("kuroshiro-analyzer-kuromoji");
       const Analyzer = KuromojiAnalyzer.default || KuromojiAnalyzer;
-      const path = require("path");
-      const dictPath = path.join(__dirname, "dict");
       kuroshiroInstance = new Kuroshiro();
-      await kuroshiroInstance.init(new Analyzer({ dictPath }));
+      await kuroshiroInstance.init(new Analyzer({ dictPath: getDictDir() }));
     } catch (e) {
       console.error("Takoba: kuroshiro init failed", e);
     }

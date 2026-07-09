@@ -22,14 +22,30 @@ if (destArg) {
 
   if (fs.existsSync(extDir)) {
     copyDict(extDir);
-  } else {
-    // Fallback: try dist/ directory
-    const distDir = path.join(__dirname, "..", "dist");
-    if (fs.existsSync(distDir)) {
-      copyDict(distDir);
-    } else {
-      console.error("Takoba: could not find extension output directory");
-      process.exit(1);
-    }
+    return;
   }
+
+  // Try Raycast extension directory (Linux)
+  const raycastDir = path.join(os.homedir(), ".config", "raycast", "extensions", "takoba");
+  if (fs.existsSync(raycastDir)) {
+    copyDict(raycastDir);
+    return;
+  }
+
+  // Try Raycast extension directory (macOS)
+  const raycastMacDir = path.join(os.homedir(), "Library", "Application Support", "com.raycast.macos", "extensions", "takoba");
+  if (fs.existsSync(raycastMacDir)) {
+    copyDict(raycastMacDir);
+    return;
+  }
+
+  // Fallback: try dist/ directory
+  const distDir = path.join(__dirname, "..", "dist");
+  if (fs.existsSync(distDir)) {
+    copyDict(distDir);
+    return;
+  }
+
+  console.error("Takoba: could not find extension output directory");
+  process.exit(1);
 }
