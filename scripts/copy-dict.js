@@ -27,10 +27,7 @@ if (destArg) {
     candidates.push(path.join(xdg, "vicinae", "extensions", "takoba"));
   }
 
-  // Raycast
-  if (platform === "linux") {
-    candidates.push(path.join(os.homedir(), ".config", "raycast", "extensions", "takoba"));
-  }
+  // Raycast — macOS / Windows only
   if (platform === "darwin") {
     candidates.push(path.join(os.homedir(), "Library", "Application Support", "com.raycast.macos", "extensions", "takoba"));
   }
