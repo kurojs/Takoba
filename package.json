@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "title": "Takoba",
   "description": "Japanese dictionary, translator, and Anki integration — search Jotoba, translate sentences, add cards to Anki",
-  "icon": "icon.png",
+  "icon": "icon.svg",
   "author": "kuro",
   "license": "MIT",
   "categories": [
@@ -327,5 +327,10 @@
     "build:vicinae": "node scripts/copy-shim.js vicinae && node scripts/build-worker.js && vici build && node scripts/copy-dict.js",
     "build:raycast": "node scripts/copy-shim.js raycast && node scripts/build-worker.js && ray build && node scripts/copy-dict.js",
     "dev": "vici develop"
+  },
+  "allowScripts": {
+    "esbuild@0.27.7": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.1": true
   }
 }
