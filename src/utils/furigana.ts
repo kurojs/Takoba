@@ -2,6 +2,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { execFile } from "child_process";
 import { existsSync } from "fs";
+import { runtime } from "../lib/api-shim";
 
 let kuroshiroInstance: any = null;
 let kuroshiroInitPromise: Promise<void> | null = null;
@@ -61,7 +62,7 @@ function convertViaWorker(text: string): Promise<string | null> {
             resolve(null);
             return;
           }
-          resolve(stdout?.trim() || null);
+          resolve(stdout?.trim() ?? null);
         },
       );
     } catch {
@@ -73,6 +74,7 @@ function convertViaWorker(text: string): Promise<string | null> {
 export async function convertFurigana(text: string): Promise<string | null> {
   const workerResult = await convertViaWorker(text);
   if (workerResult !== null) return workerResult;
+  if (runtime === "raycast") return null;
 
   try {
     await getKuroshiro();

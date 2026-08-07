@@ -1,3 +1,5 @@
+export const runtime: string = "raycast";
+
 export {
   Action,
   ActionPanel,

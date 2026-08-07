@@ -1,6 +1,6 @@
 {
   "name": "takoba",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "title": "Takoba",
   "description": "Japanese dictionary, translator, and Anki integration — search Jotoba, translate sentences, add cards to Anki",
   "icon": "icon.svg",

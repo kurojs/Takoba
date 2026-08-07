@@ -1,3 +1,5 @@
+export const runtime: string = "vicinae";
+
 export {
   Action,
   ActionPanel,
