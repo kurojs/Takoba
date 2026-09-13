@@ -45,7 +45,7 @@ if (destArg) {
     candidates.push(path.join(os.homedir(), "Library", "Application Support", "com.raycast.macos", "extensions", "takoba"));
   }
   if (platform === "win32") {
-    candidates.push(path.join(os.homedir(), ".config", "raycast-x", "extensions", "takoba"));
+    candidates.push(path.join(os.homedir(), ".config", "raycast", "extensions", "takoba"));
   }
 
   candidates.push(path.join(__dirname, "..", "dist"));
