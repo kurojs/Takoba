@@ -16,7 +16,6 @@ import { t } from "./i18n";
 import { searchWords, searchKanji, fetchSentences } from "./api/jotoba";
 import { translateViaGoogle, translateText } from "./api/translate";
 import { generateSoundTags } from "./api/anki";
-import { playElevenLabsAudio } from "./api/elevenlabs";
 import { convertFurigana } from "./utils/furigana";
 import { getBestSense } from "./utils/format";
 import { addNote } from "./utils/anki-ui";
@@ -250,10 +249,9 @@ export default function Command() {
                       onAction={async () => {
                         const hasFurigana = preferences.showFurigana && !!furiganaText;
                         const rawBack = results.translation + (hasFurigana ? `\n\n${furiganaText}` : "");
+                        // No audio for arbitrary translation text: JapanesePod101 only covers words.
                         const tags = await generateSoundTags(
-                          [{ text: debouncedText, language: "ja" }],
-                          preferences.elevenlabsApiKey,
-                          preferences.elevenlabsVoiceId,
+                          [],
                           preferences.ankiPort,
                           preferences.addAudioNote,
                         );
@@ -269,31 +267,6 @@ export default function Command() {
                         onAction={() => openAI(debouncedText)}
                       />
                     )}
-                    <Action
-                      title={t("playAudio", userLang)}
-                      icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
-                      shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
-                      onAction={async () => {
-                        try {
-                          await playElevenLabsAudio(
-                            debouncedText,
-                            preferences.elevenlabsApiKey,
-                            preferences.elevenlabsVoiceId,
-                            "ja",
-                          );
-                          await showToast({
-                            style: Toast.Style.Success,
-                            title: t("playingAudio", userLang),
-                          });
-                        } catch (error) {
-                          await showToast({
-                            style: Toast.Style.Failure,
-                            title: t("ttsError", userLang),
-                            message: String(error),
-                          });
-                        }
-                      }}
-                    />
                   </ActionPanel>
                 }
               />

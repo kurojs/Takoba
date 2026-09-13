@@ -8,7 +8,6 @@ export type Lang = (typeof LANGUAGES)[number];
 export interface Preferences {
   ankiPort: string;
   elevenlabsApiKey: string;
-  elevenlabsVoiceId: string;
   userLanguage: string;
   autoLoadText: boolean;
   geminiApiKey: string;

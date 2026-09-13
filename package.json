@@ -1,6 +1,6 @@
 {
   "name": "takoba",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "title": "Takoba",
   "description": "Japanese dictionary, translator, and Anki integration — search Jotoba, translate sentences, add cards to Anki",
   "icon": "icon.svg",
@@ -29,18 +29,10 @@
         {
           "name": "elevenlabsApiKey",
           "title": "ElevenLabs API Key",
-          "description": "API key for ElevenLabs text-to-speech (leave empty to disable TTS)",
+          "description": "API key for ElevenLabs text-to-speech, used to read AI explanations aloud (leave empty to disable AI audio)",
           "type": "password",
           "required": false,
           "default": ""
-        },
-        {
-          "name": "elevenlabsVoiceId",
-          "title": "ElevenLabs Voice ID",
-          "description": "Voice ID for ElevenLabs TTS (default: 21m00Tcm4TlvDq8ikWAM — Rachel)",
-          "type": "textfield",
-          "required": false,
-          "default": "21m00Tcm4TlvDq8ikWAM"
         },
         {
           "name": "userLanguage",
@@ -295,7 +287,7 @@
         {
           "name": "addAudioNote",
           "title": "Audio Note on Cards",
-          "description": "Add ElevenLabs TTS audio to Anki cards — reads the translation, word, or kanji readings aloud",
+          "description": "Add JapanesePod101 audio to word cards — for words that have audio available",
           "type": "checkbox",
           "required": false,
           "default": false

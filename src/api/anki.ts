@@ -1,5 +1,6 @@
 import { fetch } from "../lib/api-shim";
 import { Section, SECTION_DECKS } from "../types";
+import { fetchJapanesePodAudio, JapaneseAudioLookup } from "./japaneseAudio";
 
 interface AnkiNote {
   deckName: string;
@@ -181,29 +182,20 @@ async function storeMediaFile(
 }
 
 export async function generateSoundTags(
-  audioTexts: { text: string; language?: string }[],
-  apiKey: string,
-  voiceId: string,
+  audioLookups: JapaneseAudioLookup[],
   port: string,
   enabled: boolean = true,
 ): Promise<string[]> {
-  if (!enabled || !apiKey || audioTexts.length === 0) return [];
+  if (!enabled || audioLookups.length === 0) return [];
 
   const timestamp = Date.now();
   const tags: string[] = [];
 
-  for (let i = 0; i < audioTexts.length; i++) {
+  for (let i = 0; i < audioLookups.length; i++) {
     try {
-      const text = audioTexts[i].text;
-      if (!text) continue;
-      const { generateTTSBuffer } = await import("./elevenlabs");
-      const audioBuffer = await generateTTSBuffer(
-        text.slice(0, 500),
-        apiKey,
-        voiceId,
-        audioTexts[i].language,
-      );
-      const base64Data = Buffer.from(audioBuffer).toString("base64");
+      const audio = await fetchJapanesePodAudio(audioLookups[i]);
+      if (!audio) continue;
+      const base64Data = audio.toString("base64");
       const filename = `takoba_card_${timestamp}_${i}.mp3`;
       await storeMediaFile(filename, base64Data, port);
       tags.push(`[sound:${filename}]`);

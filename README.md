@@ -23,7 +23,7 @@ Search [Jotoba](https://jotoba.de) for words, kanji, and sentences. Translate on
 - **Translation** — instant Japanese → your language via Google Translate
 - **AI explanations** — Gemini-powered breakdowns of words, kanji, and phrases in your language
 - **Anki export** — one click (`⌘⇧A`), with per-deck duplicate detection
-- **Text-to-speech** — ElevenLabs multilingual TTS (`⌘⇧P`)
+- **Native word audio** — JapanesePod101 pronunciations for words (`⌘⇧P`); ElevenLabs reads AI explanations aloud
 - **Clipboard-aware** — auto-loads selected text on launch
 
 <details>
@@ -72,8 +72,8 @@ The extension registers itself on first run — `Ctrl+C` once it loads, it stays
 |---|---|---|
 | Definition Language | English | Jotoba definition language (9 supported) |
 | AnkiConnect Port | `8765` | Local port for the AnkiConnect API |
-| ElevenLabs API Key | — | Required for TTS |
-| ElevenLabs Voice ID | `21m00Tcm4TlvDq8ikWAM` | Voice used for pronunciation |
+| Audio on Anki Cards | `false` | Add JapanesePod101 audio to word cards when available |
+| ElevenLabs API Key | — | Reads AI explanations aloud |
 | Gemini API Key | — | Required for AI explanations |
 | AI Model | `gemini-2.5-flash` | 15 models available |
 | AI Response Language | English | Language for AI explanations (21 supported) |
@@ -98,7 +98,8 @@ Search a word, kanji, or phrase — results are grouped as Translation → Words
 |---|---|---|
 | Node.js ≥ 18 | Building from source | |
 | [Anki](https://apps.ankiweb.net) + [AnkiConnect](https://foosoft.net/projects/anki-connect/) | Anki export | Plugin code `2055492159` |
-| [ElevenLabs](https://elevenlabs.io) API key | TTS | Free tier available |
+| [JapanesePod101](https://www.japanesepod101.com) | Word audio | Free, no API key |
+| [ElevenLabs](https://elevenlabs.io) API key | AI explanation audio | Free tier available |
 | [Gemini](https://aistudio.google.com/) API key | AI explanations | Free tier available |
 | `ffplay` (ffmpeg) or `mpv` | Audio playback on Linux | |
 

@@ -19,7 +19,7 @@ import {
 } from "../utils/format";
 import { generateSoundTags } from "../api/anki";
 import { addNote } from "../utils/anki-ui";
-import { playElevenLabsAudio } from "../api/elevenlabs";
+import { playJapanesePodAudio } from "../api/japaneseAudio";
 import { openUrl } from "../utils/open";
 
 export default function WordListItem({
@@ -81,9 +81,7 @@ export default function WordListItem({
               const query = word.reading.kanji || word.reading.kana;
               if (!query) return;
               const tags = await generateSoundTags(
-                [{ text: word.reading.kana, language: "ja" }],
-                preferences.elevenlabsApiKey,
-                preferences.elevenlabsVoiceId,
+                [{ kanji: word.reading.kanji ?? "", kana: word.reading.kana }],
                 preferences.ankiPort,
                 preferences.addAudioNote,
               );
@@ -106,14 +104,11 @@ export default function WordListItem({
             icon={{ source: Icon.SpeakerOn, tintColor: Color.Blue }}
             shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
             onAction={async () => {
-              const text = word.reading.kana;
               try {
-                await playElevenLabsAudio(
-                  text,
-                  preferences.elevenlabsApiKey,
-                  preferences.elevenlabsVoiceId,
-                  "ja",
-                );
+                await playJapanesePodAudio({
+                  kanji: word.reading.kanji ?? "",
+                  kana: word.reading.kana,
+                });
                 await showToast({
                   style: Toast.Style.Success,
                   title: t("playingAudio", lang),

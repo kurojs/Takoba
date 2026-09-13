@@ -64,15 +64,9 @@ export default function KanjiListItem({
             icon={{ source: Icon.Plus, tintColor: Color.Green }}
             shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
             onAction={async () => {
-              const audioTexts: { text: string; language?: string }[] = [];
-              if (kanji.onyomi?.length)
-                audioTexts.push({ text: kanji.onyomi.join("、"), language: "ja" });
-              if (kanji.kunyomi?.length)
-                audioTexts.push({ text: kanji.kunyomi.join("、"), language: "ja" });
+              // No audio for bare kanji readings: JapanesePod101 only covers words.
               const tags = await generateSoundTags(
-                audioTexts,
-                preferences.elevenlabsApiKey,
-                preferences.elevenlabsVoiceId,
+                [],
                 preferences.ankiPort,
                 preferences.addAudioNote,
               );
