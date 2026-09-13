@@ -1,5 +1,5 @@
 import { writeFile, unlink } from "fs/promises";
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
 import { promisify } from "util";
 import { join } from "path";
 import { environment } from "../lib/api-shim";
@@ -23,9 +23,33 @@ export async function playAudioBuffer(
   const platform = getPlatform();
 
   if (platform === "win32") {
-    exec(`start "" "${audioPath}"`, (err) => {
-      if (err) console.error("Error playing audio:", err);
-    });
+    // Play headless via Windows Presentation Foundation's MediaPlayer so
+    // Windows never asks which app to open the file or opens a player window.
+    const psScript = [
+      "Add-Type -AssemblyName PresentationCore",
+      "$m = New-Object System.Windows.Media.MediaPlayer",
+      "$m.Open([uri]$args[0]); $m.Play()",
+      "if ($m.NaturalDuration.HasTimeSpan) {",
+      "  $t0 = Get-Date",
+      "  do { Start-Sleep -Milliseconds 100; $d = $m.NaturalDuration.HasTimeSpan -and $m.Position -ge $m.NaturalDuration.TimeSpan } while (-not $d -and ((Get-Date) - $t0).TotalSeconds -lt 30)",
+      "} else { Start-Sleep -Seconds 2 }",
+      "$m.Close()",
+    ].join("; ");
+    const child = spawn(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-WindowStyle",
+        "Hidden",
+        "-Command",
+        `& { ${psScript} }`,
+        audioPath,
+      ],
+      { windowsHide: true },
+    );
+    child.on("error", (err) => console.error("Error playing audio:", err));
+    child.on("exit", () => unlink(audioPath).catch(() => {}));
     return;
   }
 
